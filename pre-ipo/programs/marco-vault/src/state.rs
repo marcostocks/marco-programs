@@ -1,149 +1,214 @@
 use anchor_lang::prelude::*;
 
+use crate::errors::VaultError;
+
 // ═══════════════════════════════════════════════════════════════
-// VAULT STATE — Core state machine for IPO subscription vaults
+// MARCO VAULT STATE
 //
-// Security: Admin pubkey in PDA seeds prevents front-running (H-1).
-// Share decimals match USDC (6) to avoid display errors (L-3).
+// One vault == one listing event, paired with one off-chain SPV /
+// licensed broker. The program handles subscription, claim issuance,
+// deployment tracking, settlement and redemption on-chain; the real
+// shares are sourced, held and sold off-chain by the custodian.
+//
+// Security notes:
+// - The admin authority is expected to be a Squads multisig (m-of-n).
+//   The program treats `admin` as a single authority pubkey; the
+//   threshold signing happens in the multisig program, so nothing
+//   custom is baked in here.
+// - The broker payout address (`deposit_destination`) is fixed at
+//   creation and can never be changed — capital can only ever leave
+//   the vault to that one account.
+// - Share decimals match USDC (6) so 1 claim unit == 1 USDC of
+//   subscribed capital.
 // ═══════════════════════════════════════════════════════════════
 
+/// The Marco vault lifecycle. Each phase gates a specific set of
+/// actions; transitions are driven by admin calls backed by real
+/// off-chain events (allocation confirmations, listing, sale, cash
+/// return). Naming is Marco's own — the shape follows the economics
+/// of a subscription vault, not any one competitor's labels.
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy, PartialEq, Eq, Debug)]
 pub enum VaultPhase {
-    /// Deposits accepted. Users send USDC, receive share tokens.
-    FundingOpen,
-    /// Deposit window closed (deadline passed or cap hit). No more deposits.
-    FundingClosed,
-    /// USDC sent to broker for IPO subscription. Waiting for settlement.
-    AssetsDeployed,
-    /// Broker returned proceeds. Settlement amount recorded on-chain.
-    Settled,
-    /// Users can burn shares and redeem pro-rata USDC proceeds.
-    RedemptionOpen,
+    /// Parameters published, subscription not yet open.
+    Scheduled,
+    /// Subscription window live. USDC accepted up to the cap.
+    Funding,
+    /// Subscription closed (cap hit or window expired). No more deposits.
+    Sealed,
+    /// Allocation requested from the source; confirmation pending.
+    Sourcing,
+    /// Allocation confirmed; the deployable amount is now known.
+    Sourced,
+    /// Subscribed capital sent to the broker settlement account.
+    Deployed,
+    /// The underlying security has listed / is trading.
+    Live,
+    /// The position has been sold; gross proceeds reported.
+    Realized,
+    /// Net cash returned on-chain; claims (redemption) are open.
+    Claimable,
+    /// Bulk of claims processed; residual window before close-out.
+    Winding,
+    /// Close-out date passed. Terminal — no further claims.
+    Concluded,
+    /// Deal aborted before deployment; refunds enabled.
+    Cancelled,
+    /// All refunds processed. Terminal.
+    Refunded,
 }
 
 impl Default for VaultPhase {
     fn default() -> Self {
-        VaultPhase::FundingOpen
+        VaultPhase::Scheduled
     }
 }
 
 #[account]
 pub struct Vault {
-    /// Bump seed for PDA derivation
+    /// PDA bump.
     pub bump: u8,
 
-    /// Admin wallet — controls vault lifecycle transitions
+    /// Controlling authority — expected to be a Squads multisig PDA.
     pub admin: Pubkey,
 
-    /// Operator wallet — can move assets to broker (may equal admin)
+    /// Operator wallet — may trigger capital deployment (can equal admin).
     pub operator: Pubkey,
 
-    /// Treasury wallet — receives management + performance fees
+    /// Treasury wallet — receives the protocol fee.
     pub treasury: Pubkey,
 
-    /// Human-readable vault identifier (e.g., "sdmc-ipo-may-2026")
-    pub vault_id: String,
+    /// IMMUTABLE broker / SPV USDC account. Deployed capital can only
+    /// ever be sent here. Set once at creation, never mutated.
+    pub deposit_destination: Pubkey,
 
-    /// Current phase of the vault state machine
-    pub phase: VaultPhase,
-
-    /// Maximum USDC the vault accepts (in USDC lamports, 6 decimals)
-    pub deposit_cap: u64,
-
-    /// Unix timestamp after which deposits are rejected
-    pub deposit_deadline: i64,
-
-    /// Total USDC deposited into the vault
-    pub total_deposits: u64,
-
-    /// Total share tokens minted (should equal total_deposits in FundingOpen)
-    pub total_shares: u64,
-
-    /// USDC returned by broker after IPO settlement
-    pub settlement_amount: u64,
-
-    /// Amount available for redemption (settlement minus fees)
-    pub redeemable_amount: u64,
-
-    /// Total shares redeemed so far
-    pub total_redeemed_shares: u64,
-
-    /// Total USDC paid out in redemptions so far
-    pub total_redeemed_usdc: u64,
-
-    /// Sourcing spread in basis points — Marco's margin on filling pre-IPO
-    /// shares against confirmed vault demand (e.g., 150 = 1.50%).
-    ///
-    /// This is the ONLY protocol fee taken inside the vault. The market-making
-    /// spread is earned on the trading venue (bid-ask on each fill) and the
-    /// custody margin is billed by the regulated custodian — neither is charged
-    /// on-chain here.
-    pub sourcing_spread_bps: u16,
-
-    /// Total sourcing-spread fees collected at settlement
-    pub fees_collected: u64,
-
-    /// Total fees swept to treasury
-    pub fees_swept: u64,
-
-    /// SPL token mint for vault share tokens
+    /// SPL mint for the vault claim token.
     pub share_mint: Pubkey,
 
-    /// Vault's USDC token account (ATA)
+    /// The vault's own USDC token account.
     pub vault_usdc: Pubkey,
 
-    /// Total USDC moved to broker via move_assets
-    pub total_moved: u64,
+    /// Human-readable id, e.g. "hkex-sdmc-2026-q3".
+    pub vault_id: String,
 
-    /// Whether deposits are frozen (admin emergency control)
+    /// Current lifecycle phase.
+    pub phase: VaultPhase,
+
+    /// Whether deposits are frozen (emergency control).
     pub frozen: bool,
 
-    /// Reserved space for future upgrades
+    /// Maximum USDC the vault will accept (6 decimals).
+    pub deposit_cap: u64,
+
+    /// Minimum USDC a single deposit must intend (anti-dust).
+    pub min_deposit: u64,
+
+    /// Maximum cumulative USDC per address (0 = no per-address cap).
+    pub max_deposit: u64,
+
+    /// Unix ts the subscription window opens.
+    pub funding_start: i64,
+
+    /// Unix ts after which deposits are rejected.
+    pub funding_deadline: i64,
+
+    /// Unix ts after which Claimable/Winding can be Concluded.
+    pub close_out_at: i64,
+
+    /// Total USDC subscribed.
+    pub total_deposits: u64,
+
+    /// Total claim tokens minted (== total_deposits while funding).
+    pub total_shares: u64,
+
+    /// Confirmed deployable amount (set at allocation confirmation).
+    pub deployable_amount: u64,
+
+    /// Subscribed capital NOT deployed (refundable remainder).
+    pub undeployed_amount: u64,
+
+    /// Total USDC actually sent to the broker destination.
+    pub total_deployed: u64,
+
+    /// Gross sale proceeds reported at Realized (informational).
+    pub gross_proceeds: u64,
+
+    /// Net USDC returned by the broker after the sale.
+    pub settlement_amount: u64,
+
+    /// USDC available to claimants (settlement balance minus fee).
+    pub redeemable_amount: u64,
+
+    /// Claim tokens redeemed so far.
+    pub total_redeemed_shares: u64,
+
+    /// USDC paid out in redemptions so far.
+    pub total_redeemed_usdc: u64,
+
+    /// Protocol fee in basis points (500 = 5.00%). Marco's single
+    /// on-chain take. There is NO separate upside/performance fee.
+    pub fee_bps: u16,
+
+    /// Protocol fee computed at settlement.
+    pub fees_collected: u64,
+
+    /// Protocol fee swept to treasury.
+    pub fees_swept: u64,
+
+    /// Disclosed unrefundable costs deducted from refunds on cancel.
+    pub unrefundable_costs: u64,
+
+    /// USDC returned to depositors during a cancellation refund.
+    pub total_refunded_usdc: u64,
+
+    /// Reserved for forward-compatible upgrades.
     pub _reserved: [u8; 128],
 }
 
 impl Vault {
-    /// Account size for rent calculation.
-    /// 8 (discriminator) + 1 (bump) + 32*5 (pubkeys) + 4+64 (vault_id string)
-    /// + 1 (phase) + 8*11 (ten u64s + one i64 deadline) + 2 (u16 spread) + 1 (frozen)
-    /// + 128 (reserved).
-    /// NOTE: previously used 8*9, which under-allocated by 16 bytes and would fail
-    /// to serialize for vault_ids longer than ~48 chars (the cap is 64).
-    pub const MAX_SIZE: usize = 8 + 1 + (32 * 5) + (4 + 64) + 1 + (8 * 11) + 2 + 1 + 128;
+    /// Allocated account size.
+    /// 8 (disc) + 1 (bump) + 32*6 (pubkeys) + 4+64 (vault_id) + 1 (phase)
+    /// + 1 (frozen) + 8*20 (u64/i64 fields) + 2 (fee_bps) + 128 (reserved).
+    pub const MAX_SIZE: usize =
+        8 + 1 + (32 * 6) + (4 + 64) + 1 + 1 + (8 * 20) + 2 + 128;
 
-    /// Check if vault is in the expected phase
+    /// Highest allowed protocol fee (20%).
+    pub const MAX_FEE_BPS: u16 = 2000;
+
     pub fn require_phase(&self, expected: VaultPhase) -> Result<()> {
-        require!(
-            self.phase == expected,
-            VaultError::InvalidPhase
-        );
+        require!(self.phase == expected, VaultError::InvalidPhase);
         Ok(())
     }
 
-    /// Sourcing-spread fee — flat bps of the settlement amount, taken once at
-    /// settlement. Represents Marco's margin on sourcing the pre-IPO shares.
-    pub fn sourcing_fee(&self) -> u64 {
+    /// The protocol fee — a flat `fee_bps` of the net settlement amount,
+    /// taken once when the vault settles. Flat, not upside-contingent.
+    pub fn protocol_fee(&self) -> u64 {
         (self.settlement_amount as u128)
-            .checked_mul(self.sourcing_spread_bps as u128)
-            .unwrap_or(0)
+            .saturating_mul(self.fee_bps as u128)
             .checked_div(10_000)
             .unwrap_or(0) as u64
     }
 
-    /// Total protocol fees taken in the vault (sourcing spread only).
-    pub fn total_fees(&self) -> u64 {
-        self.sourcing_fee()
-    }
-
-    /// Calculate pro-rata USDC for a given number of shares
+    /// Pro-rata USDC owed for a given number of claim tokens at redemption.
     pub fn redeem_amount(&self, shares: u64) -> u64 {
         if self.total_shares == 0 || self.redeemable_amount == 0 {
             return 0;
         }
-        // Use u128 to prevent overflow on large amounts
         (self.redeemable_amount as u128)
-            .checked_mul(shares as u128)
-            .unwrap_or(0)
+            .saturating_mul(shares as u128)
+            .checked_div(self.total_shares as u128)
+            .unwrap_or(0) as u64
+    }
+
+    /// Pro-rata USDC owed for a given number of claim tokens on a cancelled
+    /// vault. Returns principal less the depositor's share of unrefundable
+    /// costs: (total_deposits - unrefundable_costs) * shares / total_shares.
+    pub fn refund_amount(&self, shares: u64) -> u64 {
+        if self.total_shares == 0 {
+            return 0;
+        }
+        let pool = self.total_deposits.saturating_sub(self.unrefundable_costs);
+        (pool as u128)
+            .saturating_mul(shares as u128)
             .checked_div(self.total_shares as u128)
             .unwrap_or(0) as u64
     }
@@ -151,33 +216,34 @@ impl Vault {
 
 #[account]
 pub struct BuyerState {
-    /// Bump seed for PDA derivation
+    /// PDA bump.
     pub bump: u8,
 
-    /// The vault this buyer state belongs to
+    /// The vault this record belongs to.
     pub vault: Pubkey,
 
-    /// The depositor's wallet address
+    /// The depositor wallet.
     pub depositor: Pubkey,
 
-    /// Total USDC deposited by this user
+    /// Cumulative USDC subscribed by this address.
     pub deposit_amount: u64,
 
-    /// Total share tokens minted to this user
+    /// Cumulative claim tokens minted to this address.
     pub shares_minted: u64,
 
-    /// Total shares redeemed by this user
+    /// Claim tokens redeemed by this address.
     pub shares_redeemed: u64,
 
-    /// Total USDC received from redemptions
+    /// USDC received from redemptions.
     pub usdc_redeemed: u64,
 
-    /// Reserved space for future upgrades
-    pub _reserved: [u8; 64],
+    /// USDC received from cancellation refunds.
+    pub usdc_refunded: u64,
+
+    /// Reserved for forward-compatible upgrades.
+    pub _reserved: [u8; 56],
 }
 
 impl BuyerState {
-    pub const MAX_SIZE: usize = 8 + 1 + 32 + 32 + 8 + 8 + 8 + 8 + 64;
+    pub const MAX_SIZE: usize = 8 + 1 + 32 + 32 + (8 * 5) + 56;
 }
-
-use crate::errors::VaultError;

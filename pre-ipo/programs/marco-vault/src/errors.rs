@@ -5,11 +5,11 @@ pub enum VaultError {
     #[msg("Vault is not in the required phase for this operation")]
     InvalidPhase,
 
-    #[msg("Deposit window has closed")]
-    DepositWindowClosed,
+    #[msg("Subscription window is not open yet")]
+    FundingNotStarted,
 
-    #[msg("Vault deposit cap has been reached")]
-    DepositCapReached,
+    #[msg("Subscription window has closed")]
+    FundingClosed,
 
     #[msg("Deposits are currently frozen by admin")]
     DepositsFrozen,
@@ -17,8 +17,14 @@ pub enum VaultError {
     #[msg("Deposit amount must be greater than zero")]
     ZeroDeposit,
 
-    #[msg("Deposit would exceed vault cap")]
-    DepositExceedsCap,
+    #[msg("Deposit is below the minimum deposit for this vault")]
+    BelowMinimum,
+
+    #[msg("Address has reached its per-wallet deposit limit")]
+    AddressLimitReached,
+
+    #[msg("Vault deposit cap is full")]
+    CapFull,
 
     #[msg("Unauthorized — only admin can perform this action")]
     UnauthorizedAdmin,
@@ -26,8 +32,14 @@ pub enum VaultError {
     #[msg("Unauthorized — only admin or operator can perform this action")]
     UnauthorizedOperator,
 
-    #[msg("Move amount exceeds unreserved vault balance")]
-    MoveExceedsBalance,
+    #[msg("Deploy destination does not match the vault's immutable broker account")]
+    WrongDestination,
+
+    #[msg("Deploy amount exceeds the confirmed deployable allocation")]
+    ExceedsDeployable,
+
+    #[msg("Confirmed allocation exceeds subscribed capital")]
+    AllocationExceedsDeposits,
 
     #[msg("Settlement amount must be greater than zero")]
     ZeroSettlement,
@@ -35,10 +47,10 @@ pub enum VaultError {
     #[msg("Redemption amount must be greater than zero")]
     ZeroRedemption,
 
-    #[msg("Insufficient shares for redemption")]
+    #[msg("Insufficient claim tokens for this action")]
     InsufficientShares,
 
-    #[msg("No redeemable amount set")]
+    #[msg("No redeemable amount is set")]
     NoRedeemableAmount,
 
     #[msg("Fee sweep amount exceeds collected fees")]
@@ -47,15 +59,18 @@ pub enum VaultError {
     #[msg("Vault ID too long (max 64 characters)")]
     VaultIdTooLong,
 
-    #[msg("Sourcing spread exceeds maximum (20% = 2000 bps)")]
-    SourcingSpreadTooHigh,
+    #[msg("Fee exceeds the maximum allowed (20% = 2000 bps)")]
+    FeeTooHigh,
+
+    #[msg("Unrefundable costs exceed subscribed capital")]
+    UnrefundableExceedsDeposits,
+
+    #[msg("Close-out date has not been reached yet")]
+    CloseOutNotReached,
+
+    #[msg("Invalid parameter supplied at initialization")]
+    InvalidParameter,
 
     #[msg("Arithmetic overflow")]
     Overflow,
-
-    #[msg("Redeemable amount exceeds vault USDC balance")]
-    RedeemableExceedsBalance,
-
-    #[msg("Cannot move assets — would drain funds reserved for yield or fees")]
-    MoveWouldDrainReserved,
 }
