@@ -8,6 +8,7 @@ use crate::state::{Vault, VaultPhase};
 /// (Claimable, Winding or Concluded). Bounded by fees_collected - fees_swept,
 /// so it can never touch depositors' redeemable balance. Admin only.
 pub fn handler(ctx: Context<SweepFee>, amount: u64) -> Result<()> {
+    let vault_ai = ctx.accounts.vault.to_account_info();
     let vault = &mut ctx.accounts.vault;
     require!(
         matches!(
@@ -32,7 +33,7 @@ pub fn handler(ctx: Context<SweepFee>, amount: u64) -> Result<()> {
             Transfer {
                 from: ctx.accounts.vault_usdc.to_account_info(),
                 to: ctx.accounts.treasury_usdc.to_account_info(),
-                authority: ctx.accounts.vault.to_account_info(),
+                authority: vault_ai,
             },
             signer,
         ),

@@ -13,6 +13,7 @@ use crate::state::{Vault, VaultPhase};
 /// - Total deployed can never exceed the confirmed deployable allocation,
 ///   so the undeployed remainder stays in the vault for redemption.
 pub fn handler(ctx: Context<DeployCapital>, amount: u64) -> Result<()> {
+    let vault_ai = ctx.accounts.vault.to_account_info();
     let vault = &mut ctx.accounts.vault;
     require!(
         vault.phase == VaultPhase::Sourced || vault.phase == VaultPhase::Deployed,
@@ -35,7 +36,7 @@ pub fn handler(ctx: Context<DeployCapital>, amount: u64) -> Result<()> {
             Transfer {
                 from: ctx.accounts.vault_usdc.to_account_info(),
                 to: ctx.accounts.destination.to_account_info(),
-                authority: ctx.accounts.vault.to_account_info(),
+                authority: vault_ai,
             },
             signer,
         ),

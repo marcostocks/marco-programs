@@ -16,6 +16,7 @@ use crate::state::{BuyerState, Vault, VaultPhase};
 /// - Enforces the window, freeze flag, min deposit and per-address max.
 /// - 1:1 minting (1 accepted USDC -> 1 claim token, both 6 decimals).
 pub fn handler(ctx: Context<Deposit>, amount: u64) -> Result<()> {
+    let vault_ai = ctx.accounts.vault.to_account_info();
     let vault = &mut ctx.accounts.vault;
     vault.require_phase(VaultPhase::Funding)?;
     require!(!vault.frozen, VaultError::DepositsFrozen);
@@ -67,7 +68,7 @@ pub fn handler(ctx: Context<Deposit>, amount: u64) -> Result<()> {
             MintTo {
                 mint: ctx.accounts.share_mint.to_account_info(),
                 to: ctx.accounts.depositor_shares.to_account_info(),
-                authority: ctx.accounts.vault.to_account_info(),
+                authority: vault_ai,
             },
             signer,
         ),
@@ -107,7 +108,7 @@ pub struct Deposit<'info> {
         seeds = [b"vault", vault.admin.as_ref(), vault.vault_id.as_bytes()],
         bump = vault.bump
     )]
-    pub vault: Account<'info, Vault>,
+    pub vault: Box<Account<'info, Vault>>,
 
     #[account(
         init_if_needed,
@@ -116,27 +117,27 @@ pub struct Deposit<'info> {
         seeds = [b"buyer", vault.key().as_ref(), depositor.key().as_ref()],
         bump
     )]
-    pub buyer_state: Account<'info, BuyerState>,
+    pub buyer_state: Box<Account<'info, BuyerState>>,
 
     #[account(mut, constraint = share_mint.key() == vault.share_mint)]
-    pub share_mint: Account<'info, Mint>,
+    pub share_mint: Box<Account<'info, Mint>>,
 
     #[account(
         mut,
         constraint = depositor_usdc.owner == depositor.key(),
         constraint = depositor_usdc.mint == vault_usdc.mint
     )]
-    pub depositor_usdc: Account<'info, TokenAccount>,
+    pub depositor_usdc: Box<Account<'info, TokenAccount>>,
 
     #[account(mut, constraint = vault_usdc.key() == vault.vault_usdc)]
-    pub vault_usdc: Account<'info, TokenAccount>,
+    pub vault_usdc: Box<Account<'info, TokenAccount>>,
 
     #[account(
         mut,
         constraint = depositor_shares.owner == depositor.key(),
         constraint = depositor_shares.mint == vault.share_mint
     )]
-    pub depositor_shares: Account<'info, TokenAccount>,
+    pub depositor_shares: Box<Account<'info, TokenAccount>>,
 
     #[account(mut)]
     pub depositor: Signer<'info>,

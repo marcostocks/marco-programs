@@ -4,6 +4,7 @@ pub mod errors;
 pub mod instructions;
 pub mod state;
 
+use instructions::*;
 use state::VaultPhase;
 
 declare_id!("Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS");
@@ -22,32 +23,32 @@ pub mod marco_vault {
     /// `deposit_destination` (the broker USDC account) is fixed here forever.
     #[allow(clippy::too_many_arguments)]
     pub fn initialize_vault(
-        ctx: Context<instructions::initialize::InitializeVault>,
+        ctx: Context<InitializeVault>,
         params: instructions::initialize::VaultParams,
     ) -> Result<()> {
         instructions::initialize::handler(ctx, params)
     }
 
     /// Scheduled -> Funding. Opens the subscription window.
-    pub fn open_funding(ctx: Context<instructions::open_funding::OpenFunding>) -> Result<()> {
+    pub fn open_funding(ctx: Context<OpenFunding>) -> Result<()> {
         instructions::open_funding::handler(ctx)
     }
 
     /// Subscribe USDC. Partial-fill up to the cap and the per-address
     /// limit; unfilled USDC never leaves the depositor's wallet. Mints
     /// claim tokens 1:1 with accepted USDC.
-    pub fn deposit(ctx: Context<instructions::deposit::Deposit>, amount: u64) -> Result<()> {
+    pub fn deposit(ctx: Context<Deposit>, amount: u64) -> Result<()> {
         instructions::deposit::handler(ctx, amount)
     }
 
     /// Funding -> Sealed. Closes the subscription window (deadline or manual).
-    pub fn seal_funding(ctx: Context<instructions::seal_funding::SealFunding>) -> Result<()> {
+    pub fn seal_funding(ctx: Context<SealFunding>) -> Result<()> {
         instructions::seal_funding::handler(ctx)
     }
 
     /// Sealed -> Sourcing. Marks the allocation as requested/pending.
     pub fn begin_sourcing(
-        ctx: Context<instructions::begin_sourcing::BeginSourcing>,
+        ctx: Context<BeginSourcing>,
     ) -> Result<()> {
         instructions::begin_sourcing::handler(ctx)
     }
@@ -55,7 +56,7 @@ pub mod marco_vault {
     /// Sourcing -> Sourced. Records the confirmed deployable allocation;
     /// the remainder becomes refundable at redemption.
     pub fn confirm_allocation(
-        ctx: Context<instructions::confirm_allocation::ConfirmAllocation>,
+        ctx: Context<ConfirmAllocation>,
         deployable_amount: u64,
     ) -> Result<()> {
         instructions::confirm_allocation::handler(ctx, deployable_amount)
@@ -64,20 +65,20 @@ pub mod marco_vault {
     /// Sourced -> Deployed (partial deploys allowed). Sends USDC to the
     /// immutable broker destination, capped to the confirmed allocation.
     pub fn deploy_capital(
-        ctx: Context<instructions::deploy_capital::DeployCapital>,
+        ctx: Context<DeployCapital>,
         amount: u64,
     ) -> Result<()> {
         instructions::deploy_capital::handler(ctx, amount)
     }
 
     /// Deployed -> Live. Records that the security has listed.
-    pub fn mark_listed(ctx: Context<instructions::mark_listed::MarkListed>) -> Result<()> {
+    pub fn mark_listed(ctx: Context<MarkListed>) -> Result<()> {
         instructions::mark_listed::handler(ctx)
     }
 
     /// Live -> Realized. Records gross sale proceeds (informational).
     pub fn mark_realized(
-        ctx: Context<instructions::mark_realized::MarkRealized>,
+        ctx: Context<MarkRealized>,
         gross_proceeds: u64,
     ) -> Result<()> {
         instructions::mark_realized::handler(ctx, gross_proceeds)
@@ -85,29 +86,29 @@ pub mod marco_vault {
 
     /// Realized -> Claimable. Records net USDC returned, computes the flat
     /// fee, and sets the redeemable balance. Opens redemption.
-    pub fn settle(ctx: Context<instructions::settle::Settle>, net_amount: u64) -> Result<()> {
+    pub fn settle(ctx: Context<Settle>, net_amount: u64) -> Result<()> {
         instructions::settle::handler(ctx, net_amount)
     }
 
     /// Burn claim tokens, receive pro-rata USDC. Allowed in Claimable/Winding.
-    pub fn claim(ctx: Context<instructions::claim::Claim>, shares_amount: u64) -> Result<()> {
+    pub fn claim(ctx: Context<Claim>, shares_amount: u64) -> Result<()> {
         instructions::claim::handler(ctx, shares_amount)
     }
 
     /// Claimable -> Winding. Marks the bulk-redeemed residual window.
-    pub fn wind_down(ctx: Context<instructions::wind_down::WindDown>) -> Result<()> {
+    pub fn wind_down(ctx: Context<WindDown>) -> Result<()> {
         instructions::wind_down::handler(ctx)
     }
 
     /// Winding/Claimable -> Concluded. Only after the close-out date. Terminal.
-    pub fn conclude(ctx: Context<instructions::wind_down::WindDown>) -> Result<()> {
+    pub fn conclude(ctx: Context<WindDown>) -> Result<()> {
         instructions::wind_down::conclude(ctx)
     }
 
     /// Abort a pre-deployment vault: * -> Cancelled. Enables refunds and
     /// records disclosed unrefundable costs.
     pub fn cancel_vault(
-        ctx: Context<instructions::cancel::CancelVault>,
+        ctx: Context<CancelVault>,
         unrefundable_costs: u64,
     ) -> Result<()> {
         instructions::cancel::handler(ctx, unrefundable_costs)
@@ -115,18 +116,18 @@ pub mod marco_vault {
 
     /// Refund a cancelled vault: burn claim tokens, receive principal less
     /// pro-rata unrefundable costs.
-    pub fn refund(ctx: Context<instructions::refund::Refund>, shares_amount: u64) -> Result<()> {
+    pub fn refund(ctx: Context<Refund>, shares_amount: u64) -> Result<()> {
         instructions::refund::handler(ctx, shares_amount)
     }
 
     /// Sweep collected protocol fees to the treasury. Bounded by fees_collected.
-    pub fn sweep_fee(ctx: Context<instructions::sweep_fee::SweepFee>, amount: u64) -> Result<()> {
+    pub fn sweep_fee(ctx: Context<SweepFee>, amount: u64) -> Result<()> {
         instructions::sweep_fee::handler(ctx, amount)
     }
 
     /// Freeze or unfreeze deposits. Admin only.
     pub fn freeze_deposits(
-        ctx: Context<instructions::admin::AdminAction>,
+        ctx: Context<AdminAction>,
         frozen: bool,
     ) -> Result<()> {
         instructions::admin::freeze_deposits(ctx, frozen)
@@ -134,7 +135,7 @@ pub mod marco_vault {
 
     /// Rotate the operator wallet. Admin only.
     pub fn update_operator(
-        ctx: Context<instructions::admin::AdminAction>,
+        ctx: Context<AdminAction>,
         new_operator: Pubkey,
     ) -> Result<()> {
         instructions::admin::update_operator(ctx, new_operator)

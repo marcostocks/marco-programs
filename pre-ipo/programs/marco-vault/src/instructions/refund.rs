@@ -8,6 +8,7 @@ use crate::state::{BuyerState, Vault, VaultPhase};
 /// the pro-rata share of disclosed unrefundable costs.
 /// refund = (total_deposits - unrefundable_costs) * shares / total_shares.
 pub fn handler(ctx: Context<Refund>, shares_amount: u64) -> Result<()> {
+    let vault_ai = ctx.accounts.vault.to_account_info();
     let vault = &mut ctx.accounts.vault;
     vault.require_phase(VaultPhase::Cancelled)?;
     require!(shares_amount > 0, VaultError::ZeroRedemption);
@@ -44,7 +45,7 @@ pub fn handler(ctx: Context<Refund>, shares_amount: u64) -> Result<()> {
             Transfer {
                 from: ctx.accounts.vault_usdc.to_account_info(),
                 to: ctx.accounts.holder_usdc.to_account_info(),
-                authority: ctx.accounts.vault.to_account_info(),
+                authority: vault_ai,
             },
             signer,
         ),
@@ -70,7 +71,7 @@ pub struct Refund<'info> {
         seeds = [b"vault", vault.admin.as_ref(), vault.vault_id.as_bytes()],
         bump = vault.bump
     )]
-    pub vault: Account<'info, Vault>,
+    pub vault: Box<Account<'info, Vault>>,
 
     #[account(
         mut,
@@ -79,27 +80,27 @@ pub struct Refund<'info> {
         constraint = buyer_state.vault == vault.key(),
         constraint = buyer_state.depositor == holder.key()
     )]
-    pub buyer_state: Account<'info, BuyerState>,
+    pub buyer_state: Box<Account<'info, BuyerState>>,
 
     #[account(mut, constraint = share_mint.key() == vault.share_mint)]
-    pub share_mint: Account<'info, Mint>,
+    pub share_mint: Box<Account<'info, Mint>>,
 
     #[account(mut, constraint = vault_usdc.key() == vault.vault_usdc)]
-    pub vault_usdc: Account<'info, TokenAccount>,
+    pub vault_usdc: Box<Account<'info, TokenAccount>>,
 
     #[account(
         mut,
         constraint = holder_shares.owner == holder.key(),
         constraint = holder_shares.mint == vault.share_mint
     )]
-    pub holder_shares: Account<'info, TokenAccount>,
+    pub holder_shares: Box<Account<'info, TokenAccount>>,
 
     #[account(
         mut,
         constraint = holder_usdc.owner == holder.key(),
         constraint = holder_usdc.mint == vault_usdc.mint
     )]
-    pub holder_usdc: Account<'info, TokenAccount>,
+    pub holder_usdc: Box<Account<'info, TokenAccount>>,
 
     #[account(mut)]
     pub holder: Signer<'info>,

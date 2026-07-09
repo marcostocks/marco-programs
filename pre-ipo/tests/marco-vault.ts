@@ -68,7 +68,7 @@ describe("marco-vault", () => {
       program.programId
     );
 
-    vaultUsdc = await createAccount(conn, admin, usdcMint, vaultPda);
+    vaultUsdc = await createAccount(conn, admin, usdcMint, vaultPda, Keypair.generate());
     brokerUsdc = await createAccount(conn, admin, usdcMint, broker.publicKey);
     treasuryUsdc = await createAccount(conn, admin, usdcMint, treasury.publicKey);
     d1Usdc = await createAccount(conn, admin, usdcMint, d1.publicKey);
@@ -302,7 +302,7 @@ describe("marco-vault", () => {
 
     const after = (await getAccount(conn, d2Usdc)).amount;
     const got = Number(after - before);
-    assert.approximately(got, 1_108_333_333 / 1, 2, "≈ 1/3 of redeemable");
+    assert.approximately(got, 1_108_333_333_333, 2, "≈ 1/3 of redeemable");
   });
 });
 
@@ -346,7 +346,7 @@ describe("marco-vault: cancel + refund", () => {
       program.programId
     );
 
-    vaultUsdc = await createAccount(conn, admin, usdcMint, vaultPda);
+    vaultUsdc = await createAccount(conn, admin, usdcMint, vaultPda, Keypair.generate());
     brokerUsdc = await createAccount(conn, admin, usdcMint, broker.publicKey);
     depUsdc = await createAccount(conn, admin, usdcMint, dep.publicKey);
     await mintTo(conn, admin, usdcMint, depUsdc, admin, 1_000_000 * 1e6);
