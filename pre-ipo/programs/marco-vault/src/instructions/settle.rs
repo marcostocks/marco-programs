@@ -18,7 +18,13 @@ pub fn handler(ctx: Context<Settle>, net_amount: u64) -> Result<()> {
     require!(net_amount > 0, VaultError::ZeroSettlement);
 
     vault.settlement_amount = net_amount;
-    vault.fees_collected = vault.protocol_fee();
+    // Add the settlement fee to any fees already collected from delivery
+    // elections, so both are excluded from the redeemable pool and both
+    // remain sweepable to the treasury.
+    vault.fees_collected = vault
+        .fees_collected
+        .checked_add(vault.protocol_fee())
+        .ok_or(VaultError::Overflow)?;
 
     let balance = ctx.accounts.vault_usdc.amount;
     let redeemable = balance.saturating_sub(vault.fees_collected);

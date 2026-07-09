@@ -253,7 +253,8 @@ describe("marco-vault", () => {
 
   it("lists, realizes, and settles with a 5% fee", async () => {
     await program.methods
-      .markListed()
+      // Cash-only path: allocation recorded, election window closed (0s).
+      .markListed(new anchor.BN(1_000_000), new anchor.BN(0))
       .accounts({ vault: vaultPda, admin: admin.publicKey })
       .signers([admin])
       .rpc();
@@ -434,5 +435,231 @@ describe("marco-vault: cancel + refund", () => {
     const after = (await getAccount(conn, depUsdc)).amount;
     // sole depositor: refund = 500,000 - 10,000 = 490,000
     assert.equal(Number(after - before), 490_000 * 1e6);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────
+// Share-delivery election path (separate vault)
+//
+// At listing a holder can convert claim tokens into a real stock spot
+// position instead of redeeming cash: they pay the protocol fee in USDC,
+// their tokens are burned, and the vault records the underlying-share
+// entitlement for off-chain broker settlement. The remaining (cash) holders
+// then redeem over the reduced cohort, undiluted.
+// ─────────────────────────────────────────────────────────────
+describe("marco-vault: share-delivery election", () => {
+  const provider = anchor.AnchorProvider.env();
+  anchor.setProvider(provider);
+  const program = anchor.workspace.MarcoVault as Program<MarcoVault>;
+  const conn = provider.connection;
+
+  const admin = Keypair.generate();
+  const broker = Keypair.generate();
+  const treasury = Keypair.generate();
+  const dA = Keypair.generate(); // elects share delivery
+  const dB = Keypair.generate(); // stays cash
+
+  let usdcMint: PublicKey;
+  let vaultUsdc: PublicKey, brokerUsdc: PublicKey;
+  let dAUsdc: PublicKey, dBUsdc: PublicKey, dAShares: PublicKey, dBShares: PublicKey;
+  let vaultPda: PublicKey, shareMintPda: PublicKey, buyerA: PublicKey, buyerB: PublicKey;
+
+  const VAULT_ID = "hkex-delivery-2026";
+  const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+  const now = () => Math.floor(Date.now() / 1000);
+
+  before(async () => {
+    for (const kp of [admin, broker, treasury, dA, dB]) {
+      const sig = await conn.requestAirdrop(kp.publicKey, 10 * LAMPORTS_PER_SOL);
+      await conn.confirmTransaction(sig);
+    }
+    usdcMint = await createMint(conn, admin, admin.publicKey, null, 6);
+
+    [vaultPda] = PublicKey.findProgramAddressSync(
+      [Buffer.from("vault"), admin.publicKey.toBuffer(), Buffer.from(VAULT_ID)],
+      program.programId
+    );
+    [shareMintPda] = PublicKey.findProgramAddressSync(
+      [Buffer.from("share_mint"), vaultPda.toBuffer()],
+      program.programId
+    );
+    [buyerA] = PublicKey.findProgramAddressSync(
+      [Buffer.from("buyer"), vaultPda.toBuffer(), dA.publicKey.toBuffer()],
+      program.programId
+    );
+    [buyerB] = PublicKey.findProgramAddressSync(
+      [Buffer.from("buyer"), vaultPda.toBuffer(), dB.publicKey.toBuffer()],
+      program.programId
+    );
+
+    vaultUsdc = await createAccount(conn, admin, usdcMint, vaultPda, Keypair.generate());
+    brokerUsdc = await createAccount(conn, admin, usdcMint, broker.publicKey);
+    // dA needs principal (600k) + delivery fee (30k); dB needs principal (400k).
+    dAUsdc = await createAccount(conn, admin, usdcMint, dA.publicKey);
+    dBUsdc = await createAccount(conn, admin, usdcMint, dB.publicKey);
+    await mintTo(conn, admin, usdcMint, dAUsdc, admin, 700_000 * 1e6);
+    await mintTo(conn, admin, usdcMint, dBUsdc, admin, 400_000 * 1e6);
+  });
+
+  it("runs the full lifecycle, one holder taking shares and one taking cash", async () => {
+    // Create + open a 1,000,000-cap vault, 5% fee.
+    await program.methods
+      .initializeVault({
+        vaultId: VAULT_ID,
+        depositCap: USDC(1_000_000),
+        minDeposit: USDC(0),
+        maxDeposit: USDC(0),
+        fundingStart: new anchor.BN(now() - 10),
+        fundingDeadline: new anchor.BN(now() + 86400),
+        closeOutAt: new anchor.BN(now() + 86400 * 30),
+        feeBps: 500,
+      })
+      .accounts({
+        vault: vaultPda,
+        shareMint: shareMintPda,
+        vaultUsdc,
+        depositDestination: brokerUsdc,
+        admin: admin.publicKey,
+        operator: admin.publicKey,
+        treasury: treasury.publicKey,
+        tokenProgram: TOKEN_PROGRAM_ID,
+        systemProgram: anchor.web3.SystemProgram.programId,
+        rent: anchor.web3.SYSVAR_RENT_PUBKEY,
+      })
+      .signers([admin])
+      .rpc();
+
+    dAShares = await createAccount(conn, admin, shareMintPda, dA.publicKey);
+    dBShares = await createAccount(conn, admin, shareMintPda, dB.publicKey);
+
+    await program.methods
+      .openFunding()
+      .accounts({ vault: vaultPda, admin: admin.publicKey })
+      .signers([admin])
+      .rpc();
+
+    // dA subscribes 600,000; dB subscribes 400,000 -> fills cap, auto-seals.
+    const deposit = async (dep: Keypair, buyer: PublicKey, usdc: PublicKey, shares: PublicKey, amt: anchor.BN) =>
+      program.methods
+        .deposit(amt)
+        .accounts({
+          vault: vaultPda,
+          buyerState: buyer,
+          shareMint: shareMintPda,
+          depositorUsdc: usdc,
+          vaultUsdc,
+          depositorShares: shares,
+          depositor: dep.publicKey,
+          tokenProgram: TOKEN_PROGRAM_ID,
+          systemProgram: anchor.web3.SystemProgram.programId,
+        })
+        .signers([dep])
+        .rpc();
+
+    await deposit(dA, buyerA, dAUsdc, dAShares, USDC(600_000));
+    await deposit(dB, buyerB, dBUsdc, dBShares, USDC(400_000));
+
+    // Source, confirm full allocation, deploy to the broker.
+    await program.methods.beginSourcing().accounts({ vault: vaultPda, admin: admin.publicKey }).signers([admin]).rpc();
+    await program.methods
+      .confirmAllocation(USDC(1_000_000))
+      .accounts({ vault: vaultPda, admin: admin.publicKey })
+      .signers([admin])
+      .rpc();
+    await program.methods
+      .deployCapital(USDC(1_000_000))
+      .accounts({
+        vault: vaultPda,
+        vaultUsdc,
+        destination: brokerUsdc,
+        adminOrOperator: admin.publicKey,
+        tokenProgram: TOKEN_PROGRAM_ID,
+      })
+      .signers([admin])
+      .rpc();
+
+    // List: broker holds 500,000 real shares for 1,000,000 tokens
+    // (0.5 share per token), election window open ~3s.
+    await program.methods
+      .markListed(new anchor.BN(500_000), new anchor.BN(3))
+      .accounts({ vault: vaultPda, admin: admin.publicKey })
+      .signers([admin])
+      .rpc();
+
+    // dA elects delivery of all 600,000 tokens.
+    const dAUsdcBefore = (await getAccount(conn, dAUsdc)).amount;
+    await program.methods
+      .electDelivery(USDC(600_000))
+      .accounts({
+        vault: vaultPda,
+        buyerState: buyerA,
+        shareMint: shareMintPda,
+        vaultUsdc,
+        holderShares: dAShares,
+        holderUsdc: dAUsdc,
+        holder: dA.publicKey,
+        tokenProgram: TOKEN_PROGRAM_ID,
+      })
+      .signers([dA])
+      .rpc();
+
+    // Tokens burned, fee (5% of 600,000 = 30,000) paid, entitlement recorded.
+    assert.equal((await getAccount(conn, dAShares)).amount.toString(), "0");
+    assert.equal(
+      Number(dAUsdcBefore - (await getAccount(conn, dAUsdc)).amount),
+      30_000 * 1e6,
+      "dA paid the 30,000 USDC delivery fee"
+    );
+    const ba = await program.account.buyerState.fetch(buyerA);
+    assert.equal(ba.sharesDelivered.toString(), USDC(600_000).toString());
+    assert.equal(ba.underlyingDelivered.toString(), "300000", "0.5 share/token * 600,000 = 300,000 shares");
+    assert.equal(ba.deliveryFeePaid.toString(), USDC(30_000).toString());
+
+    const vLive = await program.account.vault.fetch(vaultPda);
+    assert.equal(vLive.deliveredShares.toString(), USDC(600_000).toString());
+    assert.equal(vLive.feesCollected.toString(), USDC(30_000).toString());
+
+    // Wait for the election window to close, then realize + settle.
+    await sleep(3500);
+
+    // Broker sells the cash cohort (dB's 40%) and wires 440,000 net back.
+    await mintTo(conn, admin, usdcMint, vaultUsdc, admin, 440_000 * 1e6);
+    await program.methods
+      .markRealized(USDC(460_000))
+      .accounts({ vault: vaultPda, admin: admin.publicKey })
+      .signers([admin])
+      .rpc();
+    await program.methods
+      .settle(USDC(440_000))
+      .accounts({ vault: vaultPda, vaultUsdc, admin: admin.publicKey })
+      .signers([admin])
+      .rpc();
+
+    const vSettled = await program.account.vault.fetch(vaultPda);
+    // fees = 30,000 (delivery) + 5% of 440,000 (22,000) = 52,000
+    assert.equal(vSettled.feesCollected.toString(), USDC(52_000).toString());
+    // redeemable = balance (30,000 fee + 440,000 net) - 52,000 = 418,000
+    assert.equal(vSettled.redeemableAmount.toString(), USDC(418_000).toString());
+
+    // dB (the entire cash cohort of 400,000 tokens) claims the whole pool.
+    const dBBefore = (await getAccount(conn, dBUsdc)).amount;
+    await program.methods
+      .claim(USDC(400_000))
+      .accounts({
+        vault: vaultPda,
+        buyerState: buyerB,
+        shareMint: shareMintPda,
+        vaultUsdc,
+        claimantShares: dBShares,
+        claimantUsdc: dBUsdc,
+        claimant: dB.publicKey,
+        tokenProgram: TOKEN_PROGRAM_ID,
+      })
+      .signers([dB])
+      .rpc();
+
+    const dBGot = Number((await getAccount(conn, dBUsdc)).amount - dBBefore);
+    // Cash cohort gets net minus the settlement fee: 440,000 - 22,000 = 418,000.
+    assert.approximately(dBGot, 418_000 * 1e6, 2, "cash cohort redeems the full pool");
   });
 });

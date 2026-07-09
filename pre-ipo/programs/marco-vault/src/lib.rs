@@ -71,9 +71,24 @@ pub mod marco_vault {
         instructions::deploy_capital::handler(ctx, amount)
     }
 
-    /// Deployed -> Live. Records that the security has listed.
-    pub fn mark_listed(ctx: Context<MarkListed>) -> Result<()> {
-        instructions::mark_listed::handler(ctx)
+    /// Deployed -> Live. Records that the security has listed, the real
+    /// share allocation, and opens the share-delivery election window.
+    pub fn mark_listed(
+        ctx: Context<MarkListed>,
+        shares_allocated: u64,
+        election_period_secs: i64,
+    ) -> Result<()> {
+        instructions::mark_listed::handler(ctx, shares_allocated, election_period_secs)
+    }
+
+    /// While Live and within the election window: pay the protocol fee in
+    /// USDC, burn claim tokens, and record a real-share delivery entitlement
+    /// for off-chain settlement. Opts these tokens out of cash redemption.
+    pub fn elect_delivery(
+        ctx: Context<ElectDelivery>,
+        shares_amount: u64,
+    ) -> Result<()> {
+        instructions::elect_delivery::handler(ctx, shares_amount)
     }
 
     /// Live -> Realized. Records gross sale proceeds (informational).

@@ -71,6 +71,15 @@ pub enum VaultError {
     #[msg("Invalid parameter supplied at initialization")]
     InvalidParameter,
 
+    #[msg("Share-delivery election window is closed")]
+    ElectionClosed,
+
+    #[msg("Share-delivery election window is still open")]
+    ElectionStillOpen,
+
+    #[msg("Share allocation has not been recorded for this vault")]
+    AllocationNotSet,
+
     #[msg("Arithmetic overflow")]
     Overflow,
 }

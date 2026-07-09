@@ -65,7 +65,10 @@ pub fn handler(ctx: Context<InitializeVault>, p: VaultParams) -> Result<()> {
     vault.fees_swept = 0;
     vault.unrefundable_costs = 0;
     vault.total_refunded_usdc = 0;
-    vault._reserved = [0u8; 128];
+    vault.shares_allocated = 0;
+    vault.election_deadline = 0;
+    vault.delivered_shares = 0;
+    vault._reserved = [0u8; 104];
 
     msg!(
         "Vault {} created | cap {} | fee {} bps | broker {}",

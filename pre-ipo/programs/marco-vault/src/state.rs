@@ -129,6 +129,19 @@ pub struct Vault {
     /// Total USDC actually sent to the broker destination.
     pub total_deployed: u64,
 
+    /// Real underlying shares the broker acquired for the vault, recorded
+    /// at listing. Establishes the per-token delivery entitlement:
+    /// a claim token converts to `shares_allocated / total_shares` shares.
+    pub shares_allocated: u64,
+
+    /// Unix ts the share-delivery election window closes. Elections are
+    /// only accepted while Live and before this deadline.
+    pub election_deadline: i64,
+
+    /// Claim tokens burned via share-delivery election. These leave the
+    /// cash cohort, so redemption divides only among the remaining tokens.
+    pub delivered_shares: u64,
+
     /// Gross sale proceeds reported at Realized (informational).
     pub gross_proceeds: u64,
 
@@ -161,15 +174,16 @@ pub struct Vault {
     pub total_refunded_usdc: u64,
 
     /// Reserved for forward-compatible upgrades.
-    pub _reserved: [u8; 128],
+    pub _reserved: [u8; 104],
 }
 
 impl Vault {
     /// Allocated account size.
     /// 8 (disc) + 1 (bump) + 32*6 (pubkeys) + 4+64 (vault_id) + 1 (phase)
-    /// + 1 (frozen) + 8*20 (u64/i64 fields) + 2 (fee_bps) + 128 (reserved).
+    /// + 1 (frozen) + 8*23 (u64/i64 fields) + 2 (fee_bps) + 104 (reserved).
+    /// (Total unchanged: the three delivery fields came out of `_reserved`.)
     pub const MAX_SIZE: usize =
-        8 + 1 + (32 * 6) + (4 + 64) + 1 + 1 + (8 * 20) + 2 + 128;
+        8 + 1 + (32 * 6) + (4 + 64) + 1 + 1 + (8 * 23) + 2 + 104;
 
     /// Highest allowed protocol fee (20%).
     pub const MAX_FEE_BPS: u16 = 2000;
@@ -188,14 +202,45 @@ impl Vault {
             .unwrap_or(0) as u64
     }
 
+    /// Claim tokens that remain in the cash cohort — total minted minus
+    /// those burned to elect share delivery. This is the denominator for
+    /// cash redemption, so electors don't dilute the remaining holders.
+    pub fn cash_shares(&self) -> u64 {
+        self.total_shares.saturating_sub(self.delivered_shares)
+    }
+
+    /// Real underlying shares a given number of claim tokens converts to
+    /// on a delivery election: shares_allocated * shares / total_shares.
+    pub fn underlying_for(&self, shares: u64) -> u64 {
+        if self.total_shares == 0 {
+            return 0;
+        }
+        (self.shares_allocated as u128)
+            .saturating_mul(shares as u128)
+            .checked_div(self.total_shares as u128)
+            .unwrap_or(0) as u64
+    }
+
+    /// The protocol fee owed, in USDC, to elect delivery of `shares` claim
+    /// tokens. Flat `fee_bps` of the subscribed principal (1 token == 1 USDC
+    /// subscribed), paid in cash at election since no cash is redeemed.
+    pub fn delivery_fee(&self, shares: u64) -> u64 {
+        (shares as u128)
+            .saturating_mul(self.fee_bps as u128)
+            .checked_div(10_000)
+            .unwrap_or(0) as u64
+    }
+
     /// Pro-rata USDC owed for a given number of claim tokens at redemption.
+    /// Divides the redeemable pool over the cash cohort only.
     pub fn redeem_amount(&self, shares: u64) -> u64 {
-        if self.total_shares == 0 || self.redeemable_amount == 0 {
+        let denom = self.cash_shares();
+        if denom == 0 || self.redeemable_amount == 0 {
             return 0;
         }
         (self.redeemable_amount as u128)
             .saturating_mul(shares as u128)
-            .checked_div(self.total_shares as u128)
+            .checked_div(denom as u128)
             .unwrap_or(0) as u64
     }
 
@@ -240,10 +285,22 @@ pub struct BuyerState {
     /// USDC received from cancellation refunds.
     pub usdc_refunded: u64,
 
+    /// Claim tokens this address burned to elect share delivery.
+    pub shares_delivered: u64,
+
+    /// Real underlying shares owed to this address from delivery elections.
+    /// Off-chain settlement (broker -> holder brokerage account) reconciles
+    /// against this figure.
+    pub underlying_delivered: u64,
+
+    /// USDC fee this address paid to elect delivery.
+    pub delivery_fee_paid: u64,
+
     /// Reserved for forward-compatible upgrades.
-    pub _reserved: [u8; 56],
+    pub _reserved: [u8; 32],
 }
 
 impl BuyerState {
-    pub const MAX_SIZE: usize = 8 + 1 + 32 + 32 + (8 * 5) + 56;
+    /// Size unchanged: the three delivery fields came out of `_reserved`.
+    pub const MAX_SIZE: usize = 8 + 1 + 32 + 32 + (8 * 8) + 32;
 }
