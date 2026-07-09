@@ -31,7 +31,7 @@ const NEWS_ITEMS = [
   },
   {
     date: "May 10, 2026",
-    source: "Obsidian Research",
+    source: "Marco Research",
     title: "RobotPhoenix IPO Preview: Industrial robotics leader with strong unit economics",
     tag: "Report",
   },
@@ -50,8 +50,8 @@ const NEWS_ITEMS = [
 ];
 
 const REPORTS = [
-  { title: "IPO Preview — RobotPhoenix (9608.HK)", author: "Obsidian Research", date: "May 10, 2026", pages: 24 },
-  { title: "China Industrial Robotics Market Map 2026", author: "Obsidian Research", date: "Apr 28, 2026", pages: 18 },
+  { title: "IPO Preview — RobotPhoenix (9608.HK)", author: "Marco Research", date: "May 10, 2026", pages: 24 },
+  { title: "China Industrial Robotics Market Map 2026", author: "Marco Research", date: "Apr 28, 2026", pages: 18 },
   { title: "HKEX Prospectus — RobotPhoenix Ltd", author: "HKEX", date: "May 1, 2026", pages: 342 },
 ];
 
@@ -59,7 +59,7 @@ const IDEAS = [
   { addr: "DwNx...9vRe", text: "Strong fundamentals. The 34% gross margin in a hardware business is impressive. Reminds me of early DJI.", time: "3h ago", likes: 12 },
   { addr: "9xKm...4fDe", text: "Anyone know if cornerstone investors have a lock-up? Would be good to know the sell pressure timeline post-IPO.", time: "5h ago", likes: 8 },
   { addr: "Bk4r...wJ7n", text: "Deposited 50k. The risk/reward at this valuation vs comparable robotics IPOs is asymmetric. Day 1 pop potential is real.", time: "8h ago", likes: 24 },
-  { addr: "7bQr...8nWx", text: "What happens if the IPO gets pulled? Has Obsidian handled that scenario in the vault contract?", time: "12h ago", likes: 5 },
+  { addr: "7bQr...8nWx", text: "What happens if the IPO gets pulled? Has Marco handled that scenario in the vault contract?", time: "12h ago", likes: 5 },
 ];
 
 const sf = "'Outfit', -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Helvetica Neue', Arial, sans-serif";
@@ -379,7 +379,7 @@ export default function VaultPage() {
               ["Type", "Pre-IPO Vault"], ["Settlement", "USDC on Solana"],
               ["Mgmt Fee", `${vault.feeRateBps / 100}%`], ["Perf Fee", `${vault.performanceFeeBps / 100}% on profits`],
               ["Broker", "Licensed HKEX Member"], ["Audit", vault.auditBy],
-              ["Entity", "Obsidian Trade Ltd"], ["Network", "Solana"],
+              ["Entity", "Marco Trade Ltd"], ["Network", "Solana"],
             ]} />
           </NotionSection>
 

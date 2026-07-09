@@ -1,5 +1,5 @@
 // Program ID — update after mainnet deployment
-export const PROGRAM_ID = "ObsVAULT111111111111111111111111111111111111";
+export const PROGRAM_ID = "Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS";
 
 // USDC mint on Solana mainnet
 export const USDC_MINT = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v";

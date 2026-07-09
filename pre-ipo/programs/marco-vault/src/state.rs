@@ -71,7 +71,7 @@ pub struct Vault {
     /// Total USDC paid out in redemptions so far
     pub total_redeemed_usdc: u64,
 
-    /// Sourcing spread in basis points — Obsidian's margin on filling pre-IPO
+    /// Sourcing spread in basis points — Marco's margin on filling pre-IPO
     /// shares against confirmed vault demand (e.g., 150 = 1.50%).
     ///
     /// This is the ONLY protocol fee taken inside the vault. The market-making
@@ -121,7 +121,7 @@ impl Vault {
     }
 
     /// Sourcing-spread fee — flat bps of the settlement amount, taken once at
-    /// settlement. Represents Obsidian's margin on sourcing the pre-IPO shares.
+    /// settlement. Represents Marco's margin on sourcing the pre-IPO shares.
     pub fn sourcing_fee(&self) -> u64 {
         (self.settlement_amount as u128)
             .checked_mul(self.sourcing_spread_bps as u128)

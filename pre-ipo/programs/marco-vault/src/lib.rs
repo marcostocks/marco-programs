@@ -4,10 +4,10 @@ pub mod errors;
 pub mod instructions;
 pub mod state;
 
-declare_id!("ObsVAULT111111111111111111111111111111111111");
+declare_id!("Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS");
 
 #[program]
-pub mod obsidian_vault {
+pub mod marco_vault {
     use super::*;
 
     /// Initialize a new IPO subscription vault.

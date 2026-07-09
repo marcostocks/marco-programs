@@ -1,12 +1,12 @@
 [package]
-name = "obsidian-vault"
+name = "marco-vault"
 version = "0.1.0"
-description = "Obsidian IPO Subscription Vaults — on-chain vault for HK IPO access via USDC"
+description = "Marco IPO Subscription Vaults — on-chain vault for HK IPO access via USDC"
 edition = "2021"
 
 [lib]
 crate-type = ["cdylib", "lib"]
-name = "obsidian_vault"
+name = "marco_vault"
 
 [features]
 no-entrypoint = []

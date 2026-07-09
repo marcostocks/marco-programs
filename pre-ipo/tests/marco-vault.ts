@@ -1,6 +1,6 @@
 import * as anchor from "@coral-xyz/anchor";
 import { Program } from "@coral-xyz/anchor";
-import { ObsidianVault } from "../target/types/obsidian_vault";
+import { MarcoVault } from "../target/types/marco_vault";
 import {
   Keypair,
   PublicKey,
@@ -16,11 +16,11 @@ import {
 } from "@solana/spl-token";
 import { assert, expect } from "chai";
 
-describe("obsidian-vault", () => {
+describe("marco-vault", () => {
   const provider = anchor.AnchorProvider.env();
   anchor.setProvider(provider);
 
-  const program = anchor.workspace.ObsidianVault as Program<ObsidianVault>;
+  const program = anchor.workspace.MarcoVault as Program<MarcoVault>;
 
   // Actors
   const admin = Keypair.generate();
@@ -52,7 +52,7 @@ describe("obsidian-vault", () => {
 
   const VAULT_ID = "test-ipo-vault-001";
   const DEPOSIT_CAP = 3_000_000 * 1e6; // 3M USDC (6 decimals)
-  const SOURCING_SPREAD = 150; // 1.50% sourcing spread (Obsidian's only on-chain vault fee)
+  const SOURCING_SPREAD = 150; // 1.50% sourcing spread (Marco's only on-chain vault fee)
 
   before(async () => {
     // Airdrop SOL to all actors

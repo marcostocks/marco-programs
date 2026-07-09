@@ -15,14 +15,14 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en" data-theme="dark" suppressHydrationWarning>
       <head>
-        <title>Obsidian — Pre-IPO Vaults</title>
+        <title>Marco — Pre-IPO Vaults</title>
         <meta name="description" content="Subscribe to Hong Kong IPOs using USDC on Solana" />
       </head>
       <body>
-        {/* ══ NAV — matches Obsidian perps nav exactly ══ */}
+        {/* ══ NAV — matches Marco perps nav exactly ══ */}
         <nav className="nav">
           <div className="nav-left">
-            <a href="/" className="nav-logo" style={{ textDecoration: "none" }}>OBSIDIAN</a>
+            <a href="/" className="nav-logo" style={{ textDecoration: "none" }}>MARCO</a>
 
             {/* Phase 1: Vaults + Research visible. Perps/Spot hidden until ready. */}
             <a href="/" className="nav-link active">Vaults</a>
@@ -96,7 +96,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 
         <footer className="footer">
           <div style={{ maxWidth: 1200, margin: "0 auto", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <span>Obsidian Trade Ltd (BVI)</span>
+            <span>Marco Trade Ltd (BVI)</span>
             <div style={{ display: "flex", gap: 16 }}>
               <a href="#" style={{ color: "var(--muted-dim)", textDecoration: "none" }}>Terms</a>
               <a href="#" style={{ color: "var(--muted-dim)", textDecoration: "none" }}>Risk Disclosure</a>

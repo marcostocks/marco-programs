@@ -1,4 +1,4 @@
-# Obsidian — Pre-IPO Subscription Vaults
+# Marco — Pre-IPO Subscription Vaults
 
 On-chain vaults that give USDC holders access to hard-to-reach IPO allocations
 (initially Hong Kong listings via a licensed broker). Depositors receive a
@@ -76,10 +76,10 @@ FundingOpen ──close_funding──▶ FundingClosed ──move_assets──�
 
 ## Revenue model
 
-Obsidian earns on spreads and a custody margin — **not** management or
+Marco earns on spreads and a custody margin — **not** management or
 performance fees. Three revenue lines (per the deck):
 
-1. **Sourcing spread** — Obsidian sources pre-IPO shares against confirmed vault
+1. **Sourcing spread** — Marco sources pre-IPO shares against confirmed vault
    demand and fills at a margin.
 2. **Market-making spread** — the bid-ask earned on every trade on the venue.
    No commission; the spread is the revenue.
@@ -130,14 +130,14 @@ preipovaults/
 ├── Cargo.toml                  # Rust workspace
 ├── package.json                # TS test deps + scripts
 ├── tsconfig.json
-├── programs/obsidian-vault/
+├── programs/marco-vault/
 │   └── src/
 │       ├── lib.rs              # program entrypoints
 │       ├── state.rs            # Vault + BuyerState accounts, fee/redeem math
 │       ├── errors.rs           # VaultError codes
 │       └── instructions/       # one file per instruction
 ├── tests/
-│   └── obsidian-vault.ts       # full lifecycle test suite
+│   └── marco-vault.ts       # full lifecycle test suite
 └── app/                        # Next.js + TypeScript frontend
 ```
 
@@ -164,7 +164,7 @@ anchor deploy --provider.cluster devnet
 ```
 
 After the first `anchor build`, replace the placeholder program ID
-(`ObsVAULT111111111111111111111111111111111111`) in `Anchor.toml` and
+(`Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS`) in `Anchor.toml` and
 `declare_id!` in `lib.rs` with the generated keypair's pubkey
 (`anchor keys list`), then rebuild.
 
@@ -172,13 +172,13 @@ After the first `anchor build`, replace the placeholder program ID
 
 ## Frontend
 
-The `app/` directory is a Next.js app with the Obsidian design system and
+The `app/` directory is a Next.js app with the Marco design system and
 deposit/redeem interfaces. See `app/package.json` for its own scripts
 (`npm run dev`).
 
 A standalone, self-contained prototype that simulates the full deposit →
 issuance → live NAV → settlement → redemption → withdrawal cycle in the browser
-(no chain required) lives in the parent project as `obsidian-vaults.html`.
+(no chain required) lives in the parent project as `marco-vaults.html`.
 
 ---
 

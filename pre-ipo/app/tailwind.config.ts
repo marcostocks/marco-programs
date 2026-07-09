@@ -7,7 +7,7 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        obsidian: {
+        marco: {
           bg: "#080808",
           card: "#111111",
           "card-hover": "#161616",

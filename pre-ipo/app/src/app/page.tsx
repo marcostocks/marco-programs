@@ -451,7 +451,7 @@ export default function Home() {
           <p style={{
             fontSize: 11, color: "var(--muted-dim)", lineHeight: 1.7, maxWidth: 700,
           }}>
-            Obsidian provides access to Hong Kong IPO subscriptions via on-chain vaults settled in USDC.
+            Marco provides access to Hong Kong IPO subscriptions via on-chain vaults settled in USDC.
             IPO allocation is not guaranteed. Past IPO performance does not guarantee future results.
             Not financial advice. Qualified investors only.
           </p>

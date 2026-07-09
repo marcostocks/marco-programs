@@ -1,7 +1,7 @@
 {
-  "name": "obsidian-vault",
+  "name": "marco-vault",
   "version": "0.1.0",
-  "description": "Obsidian Pre-IPO Subscription Vaults — Solana/Anchor program + tests",
+  "description": "Marco Pre-IPO Subscription Vaults — Solana/Anchor program + tests",
   "license": "MIT",
   "scripts": {
     "test": "anchor test",
