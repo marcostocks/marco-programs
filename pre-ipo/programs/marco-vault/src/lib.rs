@@ -2,6 +2,7 @@ use anchor_lang::prelude::*;
 
 pub mod errors;
 pub mod instructions;
+pub mod lock;
 pub mod state;
 
 use instructions::*;
@@ -154,6 +155,23 @@ pub mod marco_vault {
         new_operator: Pubkey,
     ) -> Result<()> {
         instructions::admin::update_operator(ctx, new_operator)
+    }
+
+    /// Lock or unlock claim tokens in holders' wallets. Locked by default:
+    /// tokens are frozen on mint and can only be burned back to the vault.
+    /// Clearing the flag stops new freezes; existing accounts still need
+    /// `unlock_shares`. Admin only.
+    pub fn set_transfer_lock(
+        ctx: Context<AdminAction>,
+        locked: bool,
+    ) -> Result<()> {
+        instructions::admin::set_transfer_lock(ctx, locked)
+    }
+
+    /// Thaw one holder's claim-token account once the transfer lock has
+    /// been lifted. Permissionless — it only works after admin unlocks.
+    pub fn unlock_shares(ctx: Context<UnlockShares>) -> Result<()> {
+        instructions::unlock_shares::handler(ctx)
     }
 }
 

@@ -2,6 +2,7 @@ use anchor_lang::prelude::*;
 use anchor_spl::token::{self, Mint, MintTo, Token, TokenAccount, Transfer};
 
 use crate::errors::VaultError;
+use crate::lock;
 use crate::state::{BuyerState, Vault, VaultPhase};
 
 /// Subscribe USDC during the Funding phase.
@@ -15,6 +16,9 @@ use crate::state::{BuyerState, Vault, VaultPhase};
 /// - Claim tokens are minted to the depositor's own ATA (receiver validation).
 /// - Enforces the window, freeze flag, min deposit and per-address max.
 /// - 1:1 minting (1 accepted USDC -> 1 claim token, both 6 decimals).
+/// - The claim-token account is frozen after minting, so the tokens are
+///   locked in the depositor's wallet and can only leave by being burned
+///   back to the vault (claim / refund / elect_delivery).
 pub fn handler(ctx: Context<Deposit>, amount: u64) -> Result<()> {
     let vault_ai = ctx.accounts.vault.to_account_info();
     let vault = &mut ctx.accounts.vault;
@@ -59,21 +63,48 @@ pub fn handler(ctx: Context<Deposit>, amount: u64) -> Result<()> {
     let admin_key = vault.admin;
     let vault_id = vault.vault_id.clone();
     let bump = vault.bump;
+    let transfer_lock = vault.transfer_lock;
     let seeds = &[b"vault".as_ref(), admin_key.as_ref(), vault_id.as_bytes(), &[bump]];
     let signer = &[&seeds[..]];
 
+    let token_program = ctx.accounts.token_program.to_account_info();
+    let mint_ai = ctx.accounts.share_mint.to_account_info();
+
+    // A locked claim-token account is frozen, and a frozen account cannot
+    // be minted to. Open it, mint, lock it again — all in this instruction,
+    // so the tokens are never transferable in a transaction the holder
+    // controls. On a first deposit the account is not yet frozen and the
+    // thaw is a no-op.
+    lock::thaw_if_frozen(
+        &token_program,
+        &ctx.accounts.depositor_shares,
+        &mint_ai,
+        &vault_ai,
+        signer,
+    )?;
+
     token::mint_to(
         CpiContext::new_with_signer(
-            ctx.accounts.token_program.to_account_info(),
+            token_program.clone(),
             MintTo {
-                mint: ctx.accounts.share_mint.to_account_info(),
+                mint: mint_ai.clone(),
                 to: ctx.accounts.depositor_shares.to_account_info(),
-                authority: vault_ai,
+                authority: vault_ai.clone(),
             },
             signer,
         ),
         accepted,
     )?;
+
+    if transfer_lock {
+        lock::freeze_shares(
+            &token_program,
+            &ctx.accounts.depositor_shares,
+            &mint_ai,
+            &vault_ai,
+            signer,
+        )?;
+    }
 
     vault.total_deposits = vault.total_deposits.checked_add(accepted).ok_or(VaultError::Overflow)?;
     vault.total_shares = vault.total_shares.checked_add(accepted).ok_or(VaultError::Overflow)?;

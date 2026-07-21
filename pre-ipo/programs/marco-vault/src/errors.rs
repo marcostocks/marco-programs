@@ -80,6 +80,12 @@ pub enum VaultError {
     #[msg("Share allocation has not been recorded for this vault")]
     AllocationNotSet,
 
+    #[msg("Claim tokens are still locked for this vault")]
+    TransferLockActive,
+
+    #[msg("Claim tokens are already unlocked for this vault")]
+    TransferLockInactive,
+
     #[msg("Arithmetic overflow")]
     Overflow,
 }

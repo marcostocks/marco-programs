@@ -2,6 +2,7 @@ use anchor_lang::prelude::*;
 use anchor_spl::token::{self, Burn, Mint, Token, TokenAccount, Transfer};
 
 use crate::errors::VaultError;
+use crate::lock;
 use crate::state::{BuyerState, Vault, VaultPhase};
 
 /// Burn claim tokens and receive pro-rata USDC.
@@ -25,11 +26,32 @@ pub fn handler(ctx: Context<Claim>, shares_amount: u64) -> Result<()> {
         VaultError::InsufficientShares
     );
 
+    let admin_key = vault.admin;
+    let vault_id = vault.vault_id.clone();
+    let bump = vault.bump;
+    let transfer_lock = vault.transfer_lock;
+    let seeds = &[b"vault".as_ref(), admin_key.as_ref(), vault_id.as_bytes(), &[bump]];
+    let signer = &[&seeds[..]];
+
+    let token_program = ctx.accounts.token_program.to_account_info();
+    let mint_ai = ctx.accounts.share_mint.to_account_info();
+    let remaining = ctx.accounts.claimant_shares.amount.saturating_sub(shares_amount);
+
+    // Locked claim tokens are frozen, and a frozen account cannot be burned
+    // from. Thaw, burn, then re-lock whatever balance is left.
+    lock::thaw_if_frozen(
+        &token_program,
+        &ctx.accounts.claimant_shares,
+        &mint_ai,
+        &vault_ai,
+        signer,
+    )?;
+
     token::burn(
         CpiContext::new(
-            ctx.accounts.token_program.to_account_info(),
+            token_program.clone(),
             Burn {
-                mint: ctx.accounts.share_mint.to_account_info(),
+                mint: mint_ai.clone(),
                 from: ctx.accounts.claimant_shares.to_account_info(),
                 authority: ctx.accounts.claimant.to_account_info(),
             },
@@ -37,19 +59,25 @@ pub fn handler(ctx: Context<Claim>, shares_amount: u64) -> Result<()> {
         shares_amount,
     )?;
 
-    let admin_key = vault.admin;
-    let vault_id = vault.vault_id.clone();
-    let bump = vault.bump;
-    let seeds = &[b"vault".as_ref(), admin_key.as_ref(), vault_id.as_bytes(), &[bump]];
-    let signer = &[&seeds[..]];
+    // Only re-freeze if tokens remain. A frozen account cannot be closed,
+    // so re-locking an emptied one would strand the holder's rent.
+    if transfer_lock && remaining > 0 {
+        lock::freeze_shares(
+            &token_program,
+            &ctx.accounts.claimant_shares,
+            &mint_ai,
+            &vault_ai,
+            signer,
+        )?;
+    }
 
     token::transfer(
         CpiContext::new_with_signer(
-            ctx.accounts.token_program.to_account_info(),
+            token_program.clone(),
             Transfer {
                 from: ctx.accounts.vault_usdc.to_account_info(),
                 to: ctx.accounts.claimant_usdc.to_account_info(),
-                authority: vault_ai,
+                authority: vault_ai.clone(),
             },
             signer,
         ),

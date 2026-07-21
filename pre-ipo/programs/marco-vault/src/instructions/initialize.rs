@@ -41,6 +41,9 @@ pub fn handler(ctx: Context<InitializeVault>, p: VaultParams) -> Result<()> {
     vault.vault_id = p.vault_id;
     vault.phase = VaultPhase::Scheduled;
     vault.frozen = false;
+    // Claim tokens are locked from the first mint. Lifting this is an
+    // explicit admin action (`set_transfer_lock`), never a default.
+    vault.transfer_lock = true;
 
     vault.deposit_cap = p.deposit_cap;
     vault.min_deposit = p.min_deposit;
@@ -68,7 +71,7 @@ pub fn handler(ctx: Context<InitializeVault>, p: VaultParams) -> Result<()> {
     vault.shares_allocated = 0;
     vault.election_deadline = 0;
     vault.delivered_shares = 0;
-    vault._reserved = [0u8; 104];
+    vault._reserved = [0u8; 103];
 
     msg!(
         "Vault {} created | cap {} | fee {} bps | broker {}",
@@ -93,12 +96,15 @@ pub struct InitializeVault<'info> {
     pub vault: Account<'info, Vault>,
 
     /// Claim-token mint, 6 decimals to match USDC. Mint authority is the
-    /// vault PDA so only the program can mint/burn.
+    /// vault PDA so only the program can mint/burn. The vault PDA is also
+    /// the freeze authority — that is what locks claim tokens in holders'
+    /// wallets, and it means no external key can ever freeze or thaw them.
     #[account(
         init,
         payer = admin,
         mint::decimals = 6,
         mint::authority = vault,
+        mint::freeze_authority = vault,
         seeds = [b"share_mint", vault.key().as_ref()],
         bump
     )]

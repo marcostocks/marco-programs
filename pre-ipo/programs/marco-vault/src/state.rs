@@ -96,6 +96,14 @@ pub struct Vault {
     /// Whether deposits are frozen (emergency control).
     pub frozen: bool,
 
+    /// Whether claim tokens are locked in holders' wallets. True from
+    /// creation: every claim-token account is frozen on mint, so tokens
+    /// cannot be transferred or sold on — they can only be burned back
+    /// to the vault via claim/refund/elect_delivery. Admin can lift this
+    /// with `set_transfer_lock(false)`, after which holders call
+    /// `unlock_shares` to thaw their own account.
+    pub transfer_lock: bool,
+
     /// Maximum USDC the vault will accept (6 decimals).
     pub deposit_cap: u64,
 
@@ -174,16 +182,18 @@ pub struct Vault {
     pub total_refunded_usdc: u64,
 
     /// Reserved for forward-compatible upgrades.
-    pub _reserved: [u8; 104],
+    pub _reserved: [u8; 103],
 }
 
 impl Vault {
     /// Allocated account size.
     /// 8 (disc) + 1 (bump) + 32*6 (pubkeys) + 4+64 (vault_id) + 1 (phase)
-    /// + 1 (frozen) + 8*23 (u64/i64 fields) + 2 (fee_bps) + 104 (reserved).
-    /// (Total unchanged: the three delivery fields came out of `_reserved`.)
+    /// + 1 (frozen) + 1 (transfer_lock) + 8*23 (u64/i64 fields)
+    /// + 2 (fee_bps) + 103 (reserved).
+    /// (Total unchanged: the delivery fields and `transfer_lock` came out
+    /// of `_reserved`.)
     pub const MAX_SIZE: usize =
-        8 + 1 + (32 * 6) + (4 + 64) + 1 + 1 + (8 * 23) + 2 + 104;
+        8 + 1 + (32 * 6) + (4 + 64) + 1 + 1 + 1 + (8 * 23) + 2 + 103;
 
     /// Highest allowed protocol fee (20%).
     pub const MAX_FEE_BPS: u16 = 2000;

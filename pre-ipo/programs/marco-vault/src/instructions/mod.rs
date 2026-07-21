@@ -15,6 +15,7 @@ pub mod cancel;
 pub mod refund;
 pub mod sweep_fee;
 pub mod admin;
+pub mod unlock_shares;
 
 pub use initialize::*;
 pub use open_funding::*;
@@ -33,3 +34,4 @@ pub use cancel::*;
 pub use refund::*;
 pub use sweep_fee::*;
 pub use admin::*;
+pub use unlock_shares::*;

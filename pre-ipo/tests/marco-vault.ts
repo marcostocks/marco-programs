@@ -8,6 +8,7 @@ import {
   createAccount,
   mintTo,
   getAccount,
+  transferChecked,
 } from "@solana/spl-token";
 import { assert } from "chai";
 
@@ -148,6 +149,26 @@ describe("marco-vault", () => {
 
     const shares = await getAccount(conn, d1Shares);
     assert.equal(shares.amount.toString(), USDC(1_000_000).toString());
+    assert.isTrue(shares.isFrozen, "claim tokens must be locked on mint");
+  });
+
+  it("locks claim tokens — a holder cannot transfer them", async () => {
+    let failed = false;
+    try {
+      await transferChecked(
+        conn,
+        d1,
+        d1Shares,
+        shareMintPda,
+        d2Shares,
+        d1,
+        BigInt(USDC(1).toString()),
+        6
+      );
+    } catch (_e) {
+      failed = true;
+    }
+    assert.isTrue(failed, "transferring locked claim tokens must revert");
   });
 
   it("partial-fills a deposit that would exceed the per-address cap", async () => {
@@ -170,6 +191,11 @@ describe("marco-vault", () => {
 
     const b = await program.account.buyerState.fetch(buyer1);
     assert.equal(b.depositAmount.toString(), USDC(2_000_000).toString());
+
+    // Second deposit goes through thaw -> mint -> re-freeze; it must end locked.
+    const shares = await getAccount(conn, d1Shares);
+    assert.equal(shares.amount.toString(), USDC(2_000_000).toString());
+    assert.isTrue(shares.isFrozen, "must be re-locked after topping up");
   });
 
   it("fills the cap from a second depositor and auto-seals", async () => {
@@ -304,6 +330,91 @@ describe("marco-vault", () => {
     const after = (await getAccount(conn, d2Usdc)).amount;
     const got = Number(after - before);
     assert.approximately(got, 1_108_333_333_333, 2, "≈ 1/3 of redeemable");
+
+    // Fully redeemed: left thawed so the holder can close the account and
+    // recover rent (a frozen SPL account cannot be closed).
+    const shares = await getAccount(conn, d2Shares);
+    assert.equal(shares.amount.toString(), "0");
+    assert.isFalse(shares.isFrozen, "an emptied account must not stay frozen");
+  });
+
+  it("re-locks the remainder after a partial claim", async () => {
+    // d1 holds 2,000,000 and redeems a quarter of it.
+    await program.methods
+      .claim(USDC(500_000))
+      .accounts({
+        vault: vaultPda,
+        buyerState: buyer1,
+        shareMint: shareMintPda,
+        vaultUsdc,
+        claimantShares: d1Shares,
+        claimantUsdc: d1Usdc,
+        claimant: d1.publicKey,
+        tokenProgram: TOKEN_PROGRAM_ID,
+      })
+      .signers([d1])
+      .rpc();
+
+    const shares = await getAccount(conn, d1Shares);
+    assert.equal(shares.amount.toString(), USDC(1_500_000).toString());
+    assert.isTrue(shares.isFrozen, "the unredeemed balance must stay locked");
+  });
+
+  it("rejects unlock_shares while the lock is still active", async () => {
+    let failed = false;
+    try {
+      await program.methods
+        .unlockShares()
+        .accounts({
+          vault: vaultPda,
+          shareMint: shareMintPda,
+          holderShares: d1Shares,
+          tokenProgram: TOKEN_PROGRAM_ID,
+        })
+        .rpc();
+    } catch (_e) {
+      failed = true;
+    }
+    assert.isTrue(failed, "unlocking before admin lifts the lock must revert");
+  });
+
+  it("admin lifts the lock, holders thaw, and transfer becomes possible", async () => {
+    await program.methods
+      .setTransferLock(false)
+      .accounts({ vault: vaultPda, admin: admin.publicKey })
+      .signers([admin])
+      .rpc();
+
+    // Lifting the flag alone does not thaw: SPL freezes are per-account.
+    assert.isTrue((await getAccount(conn, d1Shares)).isFrozen);
+
+    await program.methods
+      .unlockShares()
+      .accounts({
+        vault: vaultPda,
+        shareMint: shareMintPda,
+        holderShares: d1Shares,
+        tokenProgram: TOKEN_PROGRAM_ID,
+      })
+      .rpc();
+
+    assert.isFalse((await getAccount(conn, d1Shares)).isFrozen);
+
+    // d2's account was emptied and left thawed, so it can receive.
+    await transferChecked(
+      conn,
+      d1,
+      d1Shares,
+      shareMintPda,
+      d2Shares,
+      d1,
+      BigInt(USDC(1_000).toString()),
+      6
+    );
+    assert.equal(
+      (await getAccount(conn, d2Shares)).amount.toString(),
+      USDC(1_000).toString()
+    );
   });
 });
 

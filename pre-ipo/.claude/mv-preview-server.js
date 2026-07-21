@@ -9,7 +9,7 @@ const TYPES = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/cs
 
 http.createServer((req, res) => {
   let rel = decodeURIComponent(req.url.split('?')[0]);
-  if (rel === '/') rel = '/obsidian-phase1.html';
+  if (rel === '/') rel = '/index.html';
   const file = path.join(ROOT, path.normalize(rel));
   if (!file.startsWith(ROOT)) { res.writeHead(403); return res.end('forbidden'); }
   fs.readFile(file, (err, data) => {

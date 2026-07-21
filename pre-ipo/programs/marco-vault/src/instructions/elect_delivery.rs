@@ -2,6 +2,7 @@ use anchor_lang::prelude::*;
 use anchor_spl::token::{self, Burn, Mint, Token, TokenAccount, Transfer};
 
 use crate::errors::VaultError;
+use crate::lock;
 use crate::state::{BuyerState, Vault, VaultPhase};
 
 /// Elect to take real shares instead of a cash redemption.
@@ -14,6 +15,7 @@ use crate::state::{BuyerState, Vault, VaultPhase};
 /// broker delivers those shares to the holder's brokerage account off-chain
 /// and reconciles against `buyer_state.underlying_delivered`.
 pub fn handler(ctx: Context<ElectDelivery>, shares_amount: u64) -> Result<()> {
+    let vault_ai = ctx.accounts.vault.to_account_info();
     let vault = &mut ctx.accounts.vault;
     vault.require_phase(VaultPhase::Live)?;
 
@@ -46,17 +48,49 @@ pub fn handler(ctx: Context<ElectDelivery>, shares_amount: u64) -> Result<()> {
     }
 
     // Burn the claim tokens — the holder gives up any cash redemption.
+    // Locked tokens are frozen and a frozen account cannot be burned from,
+    // so thaw first and re-lock any remaining balance afterwards.
+    let admin_key = vault.admin;
+    let vault_id = vault.vault_id.clone();
+    let bump = vault.bump;
+    let transfer_lock = vault.transfer_lock;
+    let seeds = &[b"vault".as_ref(), admin_key.as_ref(), vault_id.as_bytes(), &[bump]];
+    let signer = &[&seeds[..]];
+
+    let token_program = ctx.accounts.token_program.to_account_info();
+    let mint_ai = ctx.accounts.share_mint.to_account_info();
+    let remaining = ctx.accounts.holder_shares.amount.saturating_sub(shares_amount);
+
+    lock::thaw_if_frozen(
+        &token_program,
+        &ctx.accounts.holder_shares,
+        &mint_ai,
+        &vault_ai,
+        signer,
+    )?;
+
     token::burn(
         CpiContext::new(
-            ctx.accounts.token_program.to_account_info(),
+            token_program.clone(),
             Burn {
-                mint: ctx.accounts.share_mint.to_account_info(),
+                mint: mint_ai.clone(),
                 from: ctx.accounts.holder_shares.to_account_info(),
                 authority: ctx.accounts.holder.to_account_info(),
             },
         ),
         shares_amount,
     )?;
+
+    // Only re-freeze if tokens remain — a frozen account cannot be closed.
+    if transfer_lock && remaining > 0 {
+        lock::freeze_shares(
+            &token_program,
+            &ctx.accounts.holder_shares,
+            &mint_ai,
+            &vault_ai,
+            signer,
+        )?;
+    }
 
     vault.delivered_shares =
         vault.delivered_shares.checked_add(shares_amount).ok_or(VaultError::Overflow)?;
