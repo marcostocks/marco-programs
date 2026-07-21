@@ -39,8 +39,11 @@ describe("marco-vault", () => {
   let buyer1: PublicKey, buyer2: PublicKey;
 
   const VAULT_ID = "hkex-demo-2026-q3";
-  const CAP = USDC(3_000_000);
-  const FEE_BPS = 500; // 5.00%
+  const CAP = USDC(3_000_000); // gross deposits accepted
+  const FEE_BPS = 500; // 5.00%, deducted upfront at deposit
+  // 3,000,000 gross - 5% = 2,850,000 subscribed. Matches the worked example
+  // in docs/general/fees.md.
+  const SUBSCRIBED = USDC(2_850_000);
 
   const airdrop = async (kp: Keypair) => {
     const sig = await conn.requestAirdrop(kp.publicKey, 10 * LAMPORTS_PER_SOL);
@@ -130,7 +133,7 @@ describe("marco-vault", () => {
     assert.deepEqual(v.phase, { funding: {} });
   });
 
-  it("accepts a deposit and mints 1:1", async () => {
+  it("takes the 5% fee upfront and mints claim tokens on the net", async () => {
     await program.methods
       .deposit(USDC(1_000_000))
       .accounts({
@@ -147,9 +150,20 @@ describe("marco-vault", () => {
       .signers([d1])
       .rpc();
 
+    // 1,000,000 in -> 50,000 fee -> 950,000 subscribed and minted.
     const shares = await getAccount(conn, d1Shares);
-    assert.equal(shares.amount.toString(), USDC(1_000_000).toString());
+    assert.equal(shares.amount.toString(), USDC(950_000).toString());
     assert.isTrue(shares.isFrozen, "claim tokens must be locked on mint");
+
+    const v = await program.account.vault.fetch(vaultPda);
+    assert.equal(v.totalDeposits.toString(), USDC(1_000_000).toString(), "gross");
+    assert.equal(v.totalShares.toString(), USDC(950_000).toString(), "net subscribed");
+    // Held, not earned — refundable until capital deploys.
+    assert.equal(v.feesEscrowed.toString(), USDC(50_000).toString());
+    assert.equal(v.feesCollected.toString(), "0", "fee is not earned before deployment");
+
+    const b = await program.account.buyerState.fetch(buyer1);
+    assert.equal(b.entryFeePaid.toString(), USDC(50_000).toString());
   });
 
   it("locks claim tokens — a holder cannot transfer them", async () => {
@@ -193,8 +207,9 @@ describe("marco-vault", () => {
     assert.equal(b.depositAmount.toString(), USDC(2_000_000).toString());
 
     // Second deposit goes through thaw -> mint -> re-freeze; it must end locked.
+    // Caps apply to gross: 2,000,000 paid in -> 1,900,000 subscribed.
     const shares = await getAccount(conn, d1Shares);
-    assert.equal(shares.amount.toString(), USDC(2_000_000).toString());
+    assert.equal(shares.amount.toString(), USDC(1_900_000).toString());
     assert.isTrue(shares.isFrozen, "must be re-locked after topping up");
   });
 
@@ -217,7 +232,10 @@ describe("marco-vault", () => {
       .rpc();
 
     const v = await program.account.vault.fetch(vaultPda);
-    assert.equal(v.totalDeposits.toString(), CAP.toString());
+    assert.equal(v.totalDeposits.toString(), CAP.toString(), "cap measured on gross");
+    // 3,000,000 gross -> 150,000 fee -> 2,850,000 subscribed (the fees.md example).
+    assert.equal(v.totalShares.toString(), USDC(2_850_000).toString());
+    assert.equal(v.feesEscrowed.toString(), USDC(150_000).toString());
     assert.deepEqual(v.phase, { sealed: {} });
   });
 
@@ -228,15 +246,27 @@ describe("marco-vault", () => {
       .signers([admin])
       .rpc();
 
+    // Deployable is bounded by NET subscribed capital, not gross deposits —
+    // the fee is not deployable.
     await program.methods
-      .confirmAllocation(CAP)
+      .confirmAllocation(SUBSCRIBED)
       .accounts({ vault: vaultPda, admin: admin.publicKey })
       .signers([admin])
       .rpc();
 
     const v = await program.account.vault.fetch(vaultPda);
     assert.deepEqual(v.phase, { sourced: {} });
-    assert.equal(v.deployableAmount.toString(), CAP.toString());
+    assert.equal(v.deployableAmount.toString(), SUBSCRIBED.toString());
+  });
+
+  it("refuses an allocation larger than the net subscribed capital", async () => {
+    // Guard lives on confirm_allocation; re-check it can't be exceeded.
+    const v = await program.account.vault.fetch(vaultPda);
+    assert.equal(v.deployableAmount.toString(), USDC(2_850_000).toString());
+    assert.isTrue(
+      v.deployableAmount.lte(v.totalShares),
+      "deployable must never exceed net subscribed"
+    );
   });
 
   it("rejects deployment to the wrong destination", async () => {
@@ -244,7 +274,7 @@ describe("marco-vault", () => {
     let failed = false;
     try {
       await program.methods
-        .deployCapital(CAP)
+        .deployCapital(SUBSCRIBED)
         .accounts({
           vault: vaultPda,
           vaultUsdc,
@@ -262,7 +292,7 @@ describe("marco-vault", () => {
 
   it("deploys capital to the immutable broker account", async () => {
     await program.methods
-      .deployCapital(CAP)
+      .deployCapital(SUBSCRIBED)
       .accounts({
         vault: vaultPda,
         vaultUsdc,
@@ -273,11 +303,22 @@ describe("marco-vault", () => {
       .signers([admin])
       .rpc();
 
+    // Only the net goes to the broker; the fee stays behind in the vault.
     const bal = await getAccount(conn, brokerUsdc);
-    assert.equal(bal.amount.toString(), CAP.toString());
+    assert.equal(bal.amount.toString(), SUBSCRIBED.toString());
+    assert.equal(
+      (await getAccount(conn, vaultUsdc)).amount.toString(),
+      USDC(150_000).toString(),
+      "the 150,000 fee remains in the vault"
+    );
+
+    // Deployment is the moment the fee is earned.
+    const v = await program.account.vault.fetch(vaultPda);
+    assert.equal(v.feesEscrowed.toString(), "0", "no longer refundable");
+    assert.equal(v.feesCollected.toString(), USDC(150_000).toString(), "now earned");
   });
 
-  it("lists, realizes, and settles with a 5% fee", async () => {
+  it("lists, realizes, and settles with no further fee", async () => {
     await program.methods
       // Cash-only path: allocation recorded, election window closed (0s).
       .markListed(new anchor.BN(1_000_000), new anchor.BN(0))
@@ -303,17 +344,19 @@ describe("marco-vault", () => {
 
     const v = await program.account.vault.fetch(vaultPda);
     assert.deepEqual(v.phase, { claimable: {} });
-    // fee = 5% of 3,500,000 = 175,000
-    assert.equal(v.feesCollected.toString(), USDC(175_000).toString());
-    // redeemable = balance (3,500,000) - fee (175,000) = 3,325,000
-    assert.equal(v.redeemableAmount.toString(), USDC(3_325_000).toString());
+    // No settlement fee — the 150,000 was taken upfront and is unchanged.
+    assert.equal(v.feesCollected.toString(), USDC(150_000).toString());
+    // Balance = 150,000 fee left behind + 3,500,000 returned = 3,650,000.
+    // Redeemable strips only the unswept fee, so settlement passes through
+    // in full: 3,650,000 - 150,000 = 3,500,000.
+    assert.equal(v.redeemableAmount.toString(), USDC(3_500_000).toString());
   });
 
   it("lets a holder claim pro-rata USDC", async () => {
     const before = (await getAccount(conn, d2Usdc)).amount;
-    // d2 holds 1,000,000 of 3,000,000 shares -> 1/3 of 3,325,000 = 1,108,333.33
+    // d2 holds 950,000 of 2,850,000 tokens -> 1/3 of 3,500,000 = 1,166,666.67
     await program.methods
-      .claim(USDC(1_000_000))
+      .claim(USDC(950_000))
       .accounts({
         vault: vaultPda,
         buyerState: buyer2,
@@ -329,7 +372,7 @@ describe("marco-vault", () => {
 
     const after = (await getAccount(conn, d2Usdc)).amount;
     const got = Number(after - before);
-    assert.approximately(got, 1_108_333_333_333, 2, "≈ 1/3 of redeemable");
+    assert.approximately(got, 1_166_666_666_666, 2, "≈ 1/3 of redeemable");
 
     // Fully redeemed: left thawed so the holder can close the account and
     // recover rent (a frozen SPL account cannot be closed).
@@ -339,7 +382,7 @@ describe("marco-vault", () => {
   });
 
   it("re-locks the remainder after a partial claim", async () => {
-    // d1 holds 2,000,000 and redeems a quarter of it.
+    // d1 holds 1,900,000 tokens and redeems part of the position.
     await program.methods
       .claim(USDC(500_000))
       .accounts({
@@ -356,7 +399,7 @@ describe("marco-vault", () => {
       .rpc();
 
     const shares = await getAccount(conn, d1Shares);
-    assert.equal(shares.amount.toString(), USDC(1_500_000).toString());
+    assert.equal(shares.amount.toString(), USDC(1_400_000).toString());
     assert.isTrue(shares.isFrozen, "the unredeemed balance must stay locked");
   });
 
@@ -527,9 +570,13 @@ describe("marco-vault: cancel + refund", () => {
     const v = await program.account.vault.fetch(vaultPda);
     assert.deepEqual(v.phase, { cancelled: {} });
 
+    // 500,000 paid in -> 25,000 fee -> 475,000 subscribed and held as tokens.
+    assert.equal(v.feesEscrowed.toString(), USDC(25_000).toString());
+    assert.equal(v.feesCollected.toString(), "0", "never deployed, so never earned");
+
     const before = (await getAccount(conn, depUsdc)).amount;
     await program.methods
-      .refund(USDC(500_000))
+      .refund(USDC(475_000))
       .accounts({
         vault: vaultPda,
         buyerState: buyer,
@@ -544,7 +591,9 @@ describe("marco-vault: cancel + refund", () => {
       .rpc();
 
     const after = (await getAccount(conn, depUsdc)).amount;
-    // sole depositor: refund = 500,000 - 10,000 = 490,000
+    // The entry fee is refunded with the principal, because capital never
+    // deployed: 500,000 gross - 10,000 disclosed cost = 490,000. The
+    // depositor is NOT out the 25,000 fee.
     assert.equal(Number(after - before), 490_000 * 1e6);
   });
 });
@@ -553,10 +602,10 @@ describe("marco-vault: cancel + refund", () => {
 // Share-delivery election path (separate vault)
 //
 // At listing a holder can convert claim tokens into a real stock spot
-// position instead of redeeming cash: they pay the protocol fee in USDC,
-// their tokens are burned, and the vault records the underlying-share
-// entitlement for off-chain broker settlement. The remaining (cash) holders
-// then redeem over the reduced cohort, undiluted.
+// position instead of redeeming cash. This is FREE — the protocol fee was
+// taken upfront at deposit. Their tokens are burned and the vault records
+// the underlying-share entitlement for off-chain broker settlement. The
+// remaining (cash) holders then redeem over the reduced cohort, undiluted.
 // ─────────────────────────────────────────────────────────────
 describe("marco-vault: share-delivery election", () => {
   const provider = anchor.AnchorProvider.env();
@@ -672,13 +721,14 @@ describe("marco-vault: share-delivery election", () => {
 
     // Source, confirm full allocation, deploy to the broker.
     await program.methods.beginSourcing().accounts({ vault: vaultPda, admin: admin.publicKey }).signers([admin]).rpc();
+    // 1,000,000 gross in -> 50,000 fee -> 950,000 subscribed and deployable.
     await program.methods
-      .confirmAllocation(USDC(1_000_000))
+      .confirmAllocation(USDC(950_000))
       .accounts({ vault: vaultPda, admin: admin.publicKey })
       .signers([admin])
       .rpc();
     await program.methods
-      .deployCapital(USDC(1_000_000))
+      .deployCapital(USDC(950_000))
       .accounts({
         vault: vaultPda,
         vaultUsdc,
@@ -689,46 +739,45 @@ describe("marco-vault: share-delivery election", () => {
       .signers([admin])
       .rpc();
 
-    // List: broker holds 500,000 real shares for 1,000,000 tokens
-    // (0.5 share per token), election window open ~3s.
+    // List: broker holds 500,000 real shares against 950,000 tokens,
+    // election window open ~3s.
     await program.methods
       .markListed(new anchor.BN(500_000), new anchor.BN(3))
       .accounts({ vault: vaultPda, admin: admin.publicKey })
       .signers([admin])
       .rpc();
 
-    // dA elects delivery of all 600,000 tokens.
+    // dA elects delivery of all 570,000 tokens (600,000 gross - 5% fee).
     const dAUsdcBefore = (await getAccount(conn, dAUsdc)).amount;
     await program.methods
-      .electDelivery(USDC(600_000))
+      .electDelivery(USDC(570_000))
       .accounts({
         vault: vaultPda,
         buyerState: buyerA,
         shareMint: shareMintPda,
-        vaultUsdc,
         holderShares: dAShares,
-        holderUsdc: dAUsdc,
         holder: dA.publicKey,
         tokenProgram: TOKEN_PROGRAM_ID,
       })
       .signers([dA])
       .rpc();
 
-    // Tokens burned, fee (5% of 600,000 = 30,000) paid, entitlement recorded.
+    // Tokens burned and entitlement recorded — and it cost nothing.
     assert.equal((await getAccount(conn, dAShares)).amount.toString(), "0");
     assert.equal(
-      Number(dAUsdcBefore - (await getAccount(conn, dAUsdc)).amount),
-      30_000 * 1e6,
-      "dA paid the 30,000 USDC delivery fee"
+      (await getAccount(conn, dAUsdc)).amount.toString(),
+      dAUsdcBefore.toString(),
+      "retaining a position as spot must be free"
     );
     const ba = await program.account.buyerState.fetch(buyerA);
-    assert.equal(ba.sharesDelivered.toString(), USDC(600_000).toString());
-    assert.equal(ba.underlyingDelivered.toString(), "300000", "0.5 share/token * 600,000 = 300,000 shares");
-    assert.equal(ba.deliveryFeePaid.toString(), USDC(30_000).toString());
+    assert.equal(ba.sharesDelivered.toString(), USDC(570_000).toString());
+    // 500,000 shares * 570,000 / 950,000 = 300,000
+    assert.equal(ba.underlyingDelivered.toString(), "300000");
 
     const vLive = await program.account.vault.fetch(vaultPda);
-    assert.equal(vLive.deliveredShares.toString(), USDC(600_000).toString());
-    assert.equal(vLive.feesCollected.toString(), USDC(30_000).toString());
+    assert.equal(vLive.deliveredShares.toString(), USDC(570_000).toString());
+    // Only the upfront fee, earned at deployment. Nothing added by delivery.
+    assert.equal(vLive.feesCollected.toString(), USDC(50_000).toString());
 
     // Wait for the election window to close, then realize + settle.
     await sleep(3500);
@@ -747,15 +796,17 @@ describe("marco-vault: share-delivery election", () => {
       .rpc();
 
     const vSettled = await program.account.vault.fetch(vaultPda);
-    // fees = 30,000 (delivery) + 5% of 440,000 (22,000) = 52,000
-    assert.equal(vSettled.feesCollected.toString(), USDC(52_000).toString());
-    // redeemable = balance (30,000 fee + 440,000 net) - 52,000 = 418,000
-    assert.equal(vSettled.redeemableAmount.toString(), USDC(418_000).toString());
+    // Still just the 50,000 upfront fee — no settlement fee, no delivery fee.
+    assert.equal(vSettled.feesCollected.toString(), USDC(50_000).toString());
+    // Balance = 50,000 fee left behind + 440,000 returned = 490,000.
+    // Redeemable = 490,000 - 50,000 unswept fee = 440,000, i.e. the whole
+    // settlement passes through to the cash cohort.
+    assert.equal(vSettled.redeemableAmount.toString(), USDC(440_000).toString());
 
-    // dB (the entire cash cohort of 400,000 tokens) claims the whole pool.
+    // dB is the entire cash cohort: 950,000 - 570,000 delivered = 380,000.
     const dBBefore = (await getAccount(conn, dBUsdc)).amount;
     await program.methods
-      .claim(USDC(400_000))
+      .claim(USDC(380_000))
       .accounts({
         vault: vaultPda,
         buyerState: buyerB,
@@ -770,7 +821,7 @@ describe("marco-vault: share-delivery election", () => {
       .rpc();
 
     const dBGot = Number((await getAccount(conn, dBUsdc)).amount - dBBefore);
-    // Cash cohort gets net minus the settlement fee: 440,000 - 22,000 = 418,000.
-    assert.approximately(dBGot, 418_000 * 1e6, 2, "cash cohort redeems the full pool");
+    // Cash cohort takes the settlement in full — no fee is skimmed here.
+    assert.approximately(dBGot, 440_000 * 1e6, 2, "cash cohort redeems the full pool");
   });
 });

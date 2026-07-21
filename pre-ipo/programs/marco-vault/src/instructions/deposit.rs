@@ -12,10 +12,19 @@ use crate::state::{BuyerState, Vault, VaultPhase};
 /// depositor's wallet. Anything that doesn't fit simply isn't pulled —
 /// no revert on an over-cap deposit, no separate refund transaction.
 ///
+/// The flat protocol fee is deducted upfront: the full accepted amount is
+/// pulled into the vault, and claim tokens are minted 1:1 against the NET
+/// (post-fee) subscription. On 1,000 USDC at 500 bps: 50 fee, 950 subscribed,
+/// 950 claim tokens. The fee sits in `fees_escrowed` and is only earned when
+/// capital deploys, so a cancelled deal refunds it with the principal.
+///
+/// This is the only fee the program charges — settlement and share delivery
+/// are free, and redemption pays out in full.
+///
 /// Security:
 /// - Claim tokens are minted to the depositor's own ATA (receiver validation).
 /// - Enforces the window, freeze flag, min deposit and per-address max.
-/// - 1:1 minting (1 accepted USDC -> 1 claim token, both 6 decimals).
+/// - Caps and per-address limits apply to the GROSS amount paid in.
 /// - The claim-token account is frozen after minting, so the tokens are
 ///   locked in the depositor's wallet and can only leave by being burned
 ///   back to the vault (claim / refund / elect_delivery).
@@ -45,6 +54,11 @@ pub fn handler(ctx: Context<Deposit>, amount: u64) -> Result<()> {
     // Accepted = smallest of intent, cap room, per-address room.
     let accepted = amount.min(cap_remaining).min(addr_remaining);
     require!(accepted > 0, VaultError::CapFull);
+
+    // Fee off the top; the depositor subscribes the remainder.
+    let fee = vault.entry_fee(accepted);
+    let subscribed = accepted.checked_sub(fee).ok_or(VaultError::Overflow)?;
+    require!(subscribed > 0, VaultError::ZeroDeposit);
 
     // Pull only the accepted USDC.
     token::transfer(
@@ -93,7 +107,7 @@ pub fn handler(ctx: Context<Deposit>, amount: u64) -> Result<()> {
             },
             signer,
         ),
-        accepted,
+        subscribed,
     )?;
 
     if transfer_lock {
@@ -106,20 +120,27 @@ pub fn handler(ctx: Context<Deposit>, amount: u64) -> Result<()> {
         )?;
     }
 
+    // total_deposits tracks GROSS (what the cap and refunds are measured
+    // against); total_shares tracks NET (what was actually subscribed).
     vault.total_deposits = vault.total_deposits.checked_add(accepted).ok_or(VaultError::Overflow)?;
-    vault.total_shares = vault.total_shares.checked_add(accepted).ok_or(VaultError::Overflow)?;
+    vault.total_shares = vault.total_shares.checked_add(subscribed).ok_or(VaultError::Overflow)?;
+    vault.fees_escrowed = vault.fees_escrowed.checked_add(fee).ok_or(VaultError::Overflow)?;
 
     let buyer = &mut ctx.accounts.buyer_state;
     buyer.bump = ctx.bumps.buyer_state;
     buyer.vault = vault.key();
     buyer.depositor = ctx.accounts.depositor.key();
     buyer.deposit_amount = buyer.deposit_amount.checked_add(accepted).ok_or(VaultError::Overflow)?;
-    buyer.shares_minted = buyer.shares_minted.checked_add(accepted).ok_or(VaultError::Overflow)?;
+    buyer.shares_minted =
+        buyer.shares_minted.checked_add(subscribed).ok_or(VaultError::Overflow)?;
+    buyer.entry_fee_paid = buyer.entry_fee_paid.checked_add(fee).ok_or(VaultError::Overflow)?;
 
     msg!(
-        "Deposit: intent {} accepted {} | total {}/{}",
+        "Deposit: intent {} accepted {} | fee {} subscribed {} | total {}/{}",
         amount,
         accepted,
+        fee,
+        subscribed,
         vault.total_deposits,
         vault.deposit_cap
     );

@@ -64,6 +64,7 @@ pub fn handler(ctx: Context<InitializeVault>, p: VaultParams) -> Result<()> {
     vault.total_redeemed_usdc = 0;
 
     vault.fee_bps = p.fee_bps;
+    vault.fees_escrowed = 0;
     vault.fees_collected = 0;
     vault.fees_swept = 0;
     vault.unrefundable_costs = 0;
@@ -71,7 +72,7 @@ pub fn handler(ctx: Context<InitializeVault>, p: VaultParams) -> Result<()> {
     vault.shares_allocated = 0;
     vault.election_deadline = 0;
     vault.delivered_shares = 0;
-    vault._reserved = [0u8; 103];
+    vault._reserved = [0u8; 95];
 
     msg!(
         "Vault {} created | cap {} | fee {} bps | broker {}",

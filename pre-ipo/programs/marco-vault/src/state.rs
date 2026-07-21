@@ -166,10 +166,17 @@ pub struct Vault {
     pub total_redeemed_usdc: u64,
 
     /// Protocol fee in basis points (500 = 5.00%). Marco's single
-    /// on-chain take. There is NO separate upside/performance fee.
+    /// on-chain take, deducted from each deposit as it arrives. There is
+    /// NO fee at settlement, no delivery fee, and no upside/performance fee.
     pub fee_bps: u16,
 
-    /// Protocol fee computed at settlement.
+    /// Fee deducted from deposits but not yet earned. Held in the vault and
+    /// refunded with principal if the deal is cancelled before deployment —
+    /// the fee is only earned once capital actually deploys into the deal.
+    pub fees_escrowed: u64,
+
+    /// Fee earned, moved across from `fees_escrowed` when capital deploys.
+    /// Excluded from the redeemable pool and sweepable to the treasury.
     pub fees_collected: u64,
 
     /// Protocol fee swept to treasury.
@@ -182,18 +189,18 @@ pub struct Vault {
     pub total_refunded_usdc: u64,
 
     /// Reserved for forward-compatible upgrades.
-    pub _reserved: [u8; 103],
+    pub _reserved: [u8; 95],
 }
 
 impl Vault {
     /// Allocated account size.
     /// 8 (disc) + 1 (bump) + 32*6 (pubkeys) + 4+64 (vault_id) + 1 (phase)
-    /// + 1 (frozen) + 1 (transfer_lock) + 8*23 (u64/i64 fields)
-    /// + 2 (fee_bps) + 103 (reserved).
-    /// (Total unchanged: the delivery fields and `transfer_lock` came out
-    /// of `_reserved`.)
+    /// + 1 (frozen) + 1 (transfer_lock) + 8*24 (u64/i64 fields)
+    /// + 2 (fee_bps) + 95 (reserved).
+    /// (Total unchanged: the delivery fields, `transfer_lock` and
+    /// `fees_escrowed` all came out of `_reserved`.)
     pub const MAX_SIZE: usize =
-        8 + 1 + (32 * 6) + (4 + 64) + 1 + 1 + 1 + (8 * 23) + 2 + 103;
+        8 + 1 + (32 * 6) + (4 + 64) + 1 + 1 + 1 + (8 * 24) + 2 + 95;
 
     /// Highest allowed protocol fee (20%).
     pub const MAX_FEE_BPS: u16 = 2000;
@@ -203,13 +210,24 @@ impl Vault {
         Ok(())
     }
 
-    /// The protocol fee — a flat `fee_bps` of the net settlement amount,
-    /// taken once when the vault settles. Flat, not upside-contingent.
-    pub fn protocol_fee(&self) -> u64 {
-        (self.settlement_amount as u128)
+    /// The protocol fee on a deposit — a flat `fee_bps` of the gross amount,
+    /// deducted upfront so the depositor subscribes (and mints claim tokens
+    /// against) the net. On a 1,000 USDC deposit at 500 bps: 50 fee, 950
+    /// subscribed, 950 claim tokens.
+    ///
+    /// This is the only fee the program charges. Settlement and share
+    /// delivery are both free — redemption pays out in full.
+    pub fn entry_fee(&self, gross: u64) -> u64 {
+        (gross as u128)
             .saturating_mul(self.fee_bps as u128)
             .checked_div(10_000)
             .unwrap_or(0) as u64
+    }
+
+    /// Earned fee not yet swept to treasury — the bound on `sweep_fee` and
+    /// the amount excluded from the redeemable pool.
+    pub fn fees_outstanding(&self) -> u64 {
+        self.fees_collected.saturating_sub(self.fees_swept)
     }
 
     /// Claim tokens that remain in the cash cohort — total minted minus
@@ -231,16 +249,6 @@ impl Vault {
             .unwrap_or(0) as u64
     }
 
-    /// The protocol fee owed, in USDC, to elect delivery of `shares` claim
-    /// tokens. Flat `fee_bps` of the subscribed principal (1 token == 1 USDC
-    /// subscribed), paid in cash at election since no cash is redeemed.
-    pub fn delivery_fee(&self, shares: u64) -> u64 {
-        (shares as u128)
-            .saturating_mul(self.fee_bps as u128)
-            .checked_div(10_000)
-            .unwrap_or(0) as u64
-    }
-
     /// Pro-rata USDC owed for a given number of claim tokens at redemption.
     /// Divides the redeemable pool over the cash cohort only.
     pub fn redeem_amount(&self, shares: u64) -> u64 {
@@ -255,8 +263,14 @@ impl Vault {
     }
 
     /// Pro-rata USDC owed for a given number of claim tokens on a cancelled
-    /// vault. Returns principal less the depositor's share of unrefundable
-    /// costs: (total_deposits - unrefundable_costs) * shares / total_shares.
+    /// vault: (total_deposits - unrefundable_costs) * shares / total_shares.
+    ///
+    /// Note this divides the GROSS pool over the NET token supply, which is
+    /// what refunds the entry fee along with the principal. A depositor who
+    /// paid 1,000 holds 950 tokens out of 950; they get the full 1,000 back
+    /// less their share of disclosed costs. That is the intended behaviour —
+    /// the fee is only earned once capital deploys, and cancellation happens
+    /// before deployment.
     pub fn refund_amount(&self, shares: u64) -> u64 {
         if self.total_shares == 0 {
             return 0;
@@ -280,10 +294,11 @@ pub struct BuyerState {
     /// The depositor wallet.
     pub depositor: Pubkey,
 
-    /// Cumulative USDC subscribed by this address.
+    /// Cumulative GROSS USDC paid in by this address (fee inclusive).
     pub deposit_amount: u64,
 
-    /// Cumulative claim tokens minted to this address.
+    /// Cumulative claim tokens minted to this address — the NET subscribed
+    /// amount, i.e. `deposit_amount` less the entry fee.
     pub shares_minted: u64,
 
     /// Claim tokens redeemed by this address.
@@ -303,8 +318,8 @@ pub struct BuyerState {
     /// against this figure.
     pub underlying_delivered: u64,
 
-    /// USDC fee this address paid to elect delivery.
-    pub delivery_fee_paid: u64,
+    /// Entry fee this address has paid, deducted upfront across its deposits.
+    pub entry_fee_paid: u64,
 
     /// Reserved for forward-compatible upgrades.
     pub _reserved: [u8; 32],

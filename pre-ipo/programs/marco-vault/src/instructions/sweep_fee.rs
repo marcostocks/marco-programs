@@ -18,8 +18,12 @@ pub fn handler(ctx: Context<SweepFee>, amount: u64) -> Result<()> {
         VaultError::InvalidPhase
     );
 
-    let sweepable = vault.fees_collected.saturating_sub(vault.fees_swept);
-    require!(amount <= sweepable, VaultError::FeeSweepExceedsCollected);
+    // Bounded by EARNED fee only. Anything still in `fees_escrowed` belongs
+    // to depositors until capital deploys and can never be swept.
+    require!(
+        amount <= vault.fees_outstanding(),
+        VaultError::FeeSweepExceedsCollected
+    );
 
     let admin_key = vault.admin;
     let vault_id = vault.vault_id.clone();
