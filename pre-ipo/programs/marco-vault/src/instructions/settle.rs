@@ -18,6 +18,12 @@ pub fn handler(ctx: Context<Settle>, net_amount: u64) -> Result<()> {
     vault.require_phase(VaultPhase::Realized)?;
     require!(net_amount > 0, VaultError::ZeroSettlement);
 
+    // If every holder elected share delivery there is no cash cohort, so a
+    // settlement would have no one to divide among and the balance would sit
+    // unclaimable forever. Fail loudly instead of stranding it silently — a
+    // fully-elected vault should be concluded, not settled.
+    require!(vault.cash_shares() > 0, VaultError::NoCashCohort);
+
     vault.settlement_amount = net_amount;
 
     // The only balance not belonging to depositors is the already-earned

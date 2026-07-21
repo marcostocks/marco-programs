@@ -54,6 +54,10 @@ pub fn handler(ctx: Context<Deposit>, amount: u64) -> Result<()> {
     // Accepted = smallest of intent, cap room, per-address room.
     let accepted = amount.min(cap_remaining).min(addr_remaining);
     require!(accepted > 0, VaultError::CapFull);
+    // Check the minimum against what is actually accepted, not merely the
+    // intent: a partial fill near the cap or an address limit could otherwise
+    // open a sub-minimum dust position from an over-sized request.
+    require!(accepted >= vault.min_deposit, VaultError::BelowMinimum);
 
     // Fee off the top; the depositor subscribes the remainder.
     let fee = vault.entry_fee(accepted);

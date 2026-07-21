@@ -63,10 +63,18 @@ pub struct SweepFee<'info> {
     #[account(mut, constraint = vault_usdc.key() == vault.vault_usdc)]
     pub vault_usdc: Account<'info, TokenAccount>,
 
-    #[account(mut)]
+    /// Must be a USDC account owned by the vault's treasury. `has_one =
+    /// treasury` only validates the `treasury` account below — it says
+    /// nothing about this token account, so the ownership constraint has to
+    /// be stated explicitly or fees could be swept anywhere.
+    #[account(
+        mut,
+        constraint = treasury_usdc.owner == vault.treasury @ VaultError::UnauthorizedAdmin,
+        constraint = treasury_usdc.mint == vault_usdc.mint
+    )]
     pub treasury_usdc: Account<'info, TokenAccount>,
 
-    /// CHECK: validated by has_one = treasury on the vault.
+    /// CHECK: matched against vault.treasury by `has_one = treasury` above.
     pub treasury: AccountInfo<'info>,
 
     pub admin: Signer<'info>,

@@ -86,6 +86,9 @@ pub enum VaultError {
     #[msg("Claim tokens are already unlocked for this vault")]
     TransferLockInactive,
 
+    #[msg("No cash cohort remains — every holder elected share delivery")]
+    NoCashCohort,
+
     #[msg("Arithmetic overflow")]
     Overflow,
 }

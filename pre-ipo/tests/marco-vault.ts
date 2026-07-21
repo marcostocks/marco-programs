@@ -403,6 +403,52 @@ describe("marco-vault", () => {
     assert.isTrue(shares.isFrozen, "the unredeemed balance must stay locked");
   });
 
+  it("refuses to sweep fees to an account the treasury does not own", async () => {
+    // `has_one = treasury` validates the treasury account itself and says
+    // nothing about the token account fees land in, so the ownership
+    // constraint has to be explicit. Without it, admin could sweep anywhere.
+    const attacker = Keypair.generate();
+    const attackerUsdc = await createAccount(conn, admin, usdcMint, attacker.publicKey);
+
+    let failed = false;
+    try {
+      await program.methods
+        .sweepFee(USDC(150_000))
+        .accounts({
+          vault: vaultPda,
+          vaultUsdc,
+          treasuryUsdc: attackerUsdc,
+          treasury: treasury.publicKey,
+          admin: admin.publicKey,
+          tokenProgram: TOKEN_PROGRAM_ID,
+        })
+        .signers([admin])
+        .rpc();
+    } catch (_e) {
+      failed = true;
+    }
+    assert.isTrue(failed, "fees must only sweep to the treasury's own account");
+    assert.equal((await getAccount(conn, attackerUsdc)).amount.toString(), "0");
+
+    // The legitimate sweep still works.
+    await program.methods
+      .sweepFee(USDC(150_000))
+      .accounts({
+        vault: vaultPda,
+        vaultUsdc,
+        treasuryUsdc,
+        treasury: treasury.publicKey,
+        admin: admin.publicKey,
+        tokenProgram: TOKEN_PROGRAM_ID,
+      })
+      .signers([admin])
+      .rpc();
+    assert.equal(
+      (await getAccount(conn, treasuryUsdc)).amount.toString(),
+      USDC(150_000).toString()
+    );
+  });
+
   it("rejects unlock_shares while the lock is still active", async () => {
     let failed = false;
     try {
