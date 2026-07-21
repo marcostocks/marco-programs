@@ -189,7 +189,7 @@ describe("marco-spot", () => {
     await expectError(
       () =>
         program.methods
-          .placeBuy(new anchor.BN(0), USDC(1_000), PRICE(50))
+          .placeBuy(new anchor.BN(0), USDC(1_000), PRICE(50), SHARES(1))
           .accounts({
             market: marketPda,
             order: orderPda(0),
@@ -211,7 +211,7 @@ describe("marco-spot", () => {
     const before = (await getAccount(conn, aliceUsdc)).amount;
 
     await program.methods
-      .placeBuy(new anchor.BN(0), USDC(10_000), PRICE(50))
+      .placeBuy(new anchor.BN(0), USDC(10_000), PRICE(50), SHARES(190))
       .accounts({
         market: marketPda,
         order: orderPda(0),
@@ -519,7 +519,7 @@ describe("marco-spot", () => {
     const before = (await getAccount(conn, aliceUsdc)).amount;
 
     await program.methods
-      .placeBuy(new anchor.BN(3), USDC(2_000), PRICE(60))
+      .placeBuy(new anchor.BN(3), USDC(2_000), PRICE(60), SHARES(30))
       .accounts({
         market: marketPda,
         order: orderPda(3),
@@ -565,7 +565,7 @@ describe("marco-spot", () => {
     await expectError(
       () =>
         program.methods
-          .placeBuy(new anchor.BN(4), USDC(1_000), PRICE(60))
+          .placeBuy(new anchor.BN(4), USDC(1_000), PRICE(60), SHARES(15))
           .accounts({
             market: marketPda,
             order: orderPda(4),

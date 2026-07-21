@@ -27,7 +27,12 @@ pub fn handler(ctx: Context<DeployBuy>) -> Result<()> {
     require!(order.status == OrderStatus::Pending, SpotError::InvalidOrderStatus);
 
     let gross = order.usdc_amount;
-    let fee = market.fee_on(gross);
+    // Rate snapshotted at placement, not the market's current rate — a later
+    // set_fee_bps must not re-price an order the trader already committed to.
+    let fee = (gross as u128)
+        .saturating_mul(order.fee_bps as u128)
+        .checked_div(10_000)
+        .unwrap_or(0) as u64;
     let deployable = gross.checked_sub(fee).ok_or(SpotError::Overflow)?;
     require!(deployable > 0, SpotError::ZeroAmount);
 

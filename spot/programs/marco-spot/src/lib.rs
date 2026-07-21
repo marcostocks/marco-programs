@@ -47,13 +47,17 @@ pub mod marco_spot {
 
     /// Submit a buy: escrow stablecoins and open an order. Nothing is
     /// deployed and no position exists yet.
+    ///
+    /// `min_shares_out` is mandatory slippage protection — a price cap alone
+    /// does not constrain how many shares come back.
     pub fn place_buy(
         ctx: Context<PlaceBuy>,
         order_id: u64,
         usdc_amount: u64,
         limit_price: u64,
+        min_shares_out: u64,
     ) -> Result<()> {
-        instructions::place_buy::handler(ctx, order_id, usdc_amount, limit_price)
+        instructions::place_buy::handler(ctx, order_id, usdc_amount, limit_price, min_shares_out)
     }
 
     /// Send the escrowed stablecoins to the immutable conversion-partner

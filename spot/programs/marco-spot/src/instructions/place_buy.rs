@@ -7,9 +7,17 @@ use crate::state::{Holding, Market, Order, OrderSide, OrderStatus, TraderAccount
 /// Submit a buy. Stablecoins move into the market escrow and an order is
 /// opened; nothing is deployed and no position exists yet.
 ///
-/// `limit_price` is the highest price per share the trader will accept and
-/// is enforced against the attested execution price at `confirm_buy`, so a
-/// fill can never be booked at a worse price than the trader agreed to.
+/// The trader sets two bounds, and both are enforced at `confirm_buy`:
+///
+/// - `limit_price` — the most they will pay per share.
+/// - `min_shares_out` — the fewest shares they will accept in total.
+///
+/// Both are required. A price cap alone does not constrain how many shares
+/// come back, so an order carrying only a limit price could be filled with a
+/// dust position and still pass every check.
+///
+/// The spread rate is snapshotted here, so changing `fee_bps` later cannot
+/// re-price an order already in flight.
 ///
 /// The full amount sits in escrow — the trading spread is only taken when
 /// capital actually deploys, so a cancelled order refunds in full.
@@ -18,6 +26,7 @@ pub fn handler(
     order_id: u64,
     usdc_amount: u64,
     limit_price: u64,
+    min_shares_out: u64,
 ) -> Result<()> {
     let market = &mut ctx.accounts.market;
     market.require_active()?;
@@ -31,6 +40,10 @@ pub fn handler(
         require!(usdc_amount <= market.max_order_usdc, SpotError::AboveMaximum);
     }
     require!(limit_price > 0, SpotError::InvalidParameter);
+    // Refuse an order with no quantity floor rather than defaulting to zero
+    // protection, which would leave the fill entirely at the operator's
+    // discretion.
+    require!(min_shares_out > 0, SpotError::MissingSlippageProtection);
     require!(ctx.accounts.trader_account.eligible, SpotError::TraderNotEligible);
 
     token::transfer(
@@ -56,6 +69,8 @@ pub fn handler(
     order.usdc_amount = usdc_amount;
     order.shares_amount = 0;
     order.limit_price = limit_price;
+    order.min_shares_out = min_shares_out;
+    order.fee_bps = market.fee_bps;
     order.execution_price = 0;
     order.fee_paid = 0;
     order.deployed_amount = 0;
@@ -64,7 +79,7 @@ pub fn handler(
     order.created_at = now;
     order.updated_at = now;
     order.attested_at = 0;
-    order._reserved = [0u8; 64];
+    order._reserved = [0u8; 54];
 
     let holding = &mut ctx.accounts.holding;
     holding.bump = ctx.bumps.holding;
@@ -78,11 +93,13 @@ pub fn handler(
     market.order_seq = market.order_seq.checked_add(1).ok_or(SpotError::Overflow)?;
 
     msg!(
-        "Buy #{} placed on {} | {} USDC escrowed | limit {}",
+        "Buy #{} placed on {} | {} USDC escrowed | limit {} | min out {} | spread {} bps",
         order_id,
         market.ticker,
         usdc_amount,
-        limit_price
+        limit_price,
+        min_shares_out,
+        order.fee_bps
     );
     Ok(())
 }

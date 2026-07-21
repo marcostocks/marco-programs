@@ -19,9 +19,14 @@ use crate::state::{Holding, Market, Order, OrderSide, OrderStatus};
 /// hash lets a holder verify a document they are shown is genuine and
 /// unaltered, without exposing counterparty paperwork.
 ///
-/// Two bounds protect the trader: the execution price may not be worse than
-/// the limit they agreed to, and the attested notional may not exceed the
-/// capital actually deployed for the order (a fat-finger over-mint guard).
+/// Three bounds protect the trader:
+///
+/// - the execution price may not be worse than the limit they agreed to;
+/// - the fill may not be smaller than the `min_shares_out` they set — a
+///   price cap alone constrains what each share costs, not how many arrive,
+///   so without this the whole deployment could be booked as dust;
+/// - the attested notional may not exceed the capital actually deployed for
+///   the order (a fat-finger over-mint guard).
 pub fn handler(
     ctx: Context<ConfirmBuy>,
     shares: u64,
@@ -40,6 +45,10 @@ pub fn handler(
     require!(
         execution_price <= order.limit_price,
         SpotError::LimitPriceExceeded
+    );
+    require!(
+        shares >= order.min_shares_out,
+        SpotError::BelowMinimumShares
     );
     // A position must be evidenced, not asserted.
     require!(

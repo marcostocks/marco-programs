@@ -89,6 +89,8 @@ pub fn handler(
     order.usdc_amount = 0;
     order.shares_amount = shares;
     order.limit_price = limit_price;
+    order.min_shares_out = 0; // buy-side concept only
+    order.fee_bps = market.fee_bps; // snapshot; a later set_fee_bps must not re-price this
     order.execution_price = 0;
     order.fee_paid = 0;
     order.deployed_amount = 0;
@@ -97,7 +99,7 @@ pub fn handler(
     order.created_at = now;
     order.updated_at = now;
     order.attested_at = 0;
-    order._reserved = [0u8; 64];
+    order._reserved = [0u8; 54];
 
     let holding = &mut ctx.accounts.holding;
     holding.bump = ctx.bumps.holding;

@@ -8,9 +8,10 @@ use crate::state::{Holding, Market, Order, OrderSide, OrderStatus};
 /// and the escrowed position tokens are burned against the shares leaving
 /// custody.
 ///
-/// The proceeds must already be sitting in the market account — if the
-/// broker's stablecoins have not arrived, the payout transfer fails and the
-/// order stays Pending rather than burning a position it cannot pay for.
+/// The proceeds must already be sitting in the market account as UNRESERVED
+/// balance — not merely present. If the broker's stablecoins have not
+/// arrived, settlement is refused and the order stays Pending rather than
+/// paying the seller with another trader's escrowed buy funds.
 ///
 /// The trading spread is taken from the proceeds; the trader receives the
 /// net. The execution price may not be below the trader's limit.
@@ -35,9 +36,23 @@ pub fn handler(
     require!(doc_hash != [0u8; 32], SpotError::InvalidAttestation);
 
     let shares = order.shares_amount;
-    let fee = market.fee_on(proceeds_usdc);
+    // Rate snapshotted when the sell was placed, not the market's current one.
+    let fee = (proceeds_usdc as u128)
+        .saturating_mul(order.fee_bps as u128)
+        .checked_div(10_000)
+        .unwrap_or(0) as u64;
     let payout = proceeds_usdc.checked_sub(fee).ok_or(SpotError::Overflow)?;
     require!(payout > 0, SpotError::ZeroAmount);
+
+    // The proceeds must genuinely be present as unreserved balance. The
+    // market account pools pending buy escrow and earned spread alongside
+    // returned proceeds, and an SPL transfer only checks the total — so
+    // without this a settlement raised before the broker's funds arrive is
+    // paid out of other traders' escrow, leaving their cancel_buy to fail.
+    require!(
+        market.unreserved_usdc(ctx.accounts.market_usdc.amount) >= proceeds_usdc,
+        SpotError::InsufficientUnreservedFunds
+    );
 
     let admin_key = market.admin;
     let ticker = market.ticker.clone();

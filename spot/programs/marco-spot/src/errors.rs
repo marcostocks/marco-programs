@@ -65,6 +65,15 @@ pub enum SpotError {
     #[msg("Custody attestation is missing required fields")]
     InvalidAttestation,
 
+    #[msg("Fill is below the minimum shares the trader accepted")]
+    BelowMinimumShares,
+
+    #[msg("Minimum shares out must be greater than zero")]
+    MissingSlippageProtection,
+
+    #[msg("Market holds no unreserved USDC for this payout — settlement funds have not arrived")]
+    InsufficientUnreservedFunds,
+
     #[msg("Arithmetic overflow")]
     Overflow,
 }

@@ -17,8 +17,9 @@ use crate::state::{Market, Order, OrderSide, OrderStatus};
 ///   earned on a completed purchase, not a failed one.
 ///
 /// A Deployed cancel needs the returned USDC to be sitting in the market
-/// account; if it is not, the transfer fails and the order stays Deployed
-/// rather than being marked cancelled without paying anyone.
+/// account as UNRESERVED balance; if it is not, the cancel is refused and
+/// the order stays Deployed rather than refunding out of other traders'
+/// escrow or out of spread owed to the treasury.
 pub fn handler(ctx: Context<CancelBuy>) -> Result<()> {
     let market_ai = ctx.accounts.market.to_account_info();
     let market = &mut ctx.accounts.market;
@@ -36,16 +37,31 @@ pub fn handler(ctx: Context<CancelBuy>) -> Result<()> {
     match order.status {
         OrderStatus::Pending => {
             require!(is_admin || is_trader, SpotError::UnauthorizedTrader);
+            // This order's own escrow backs the refund, so release it first.
             market.usdc_escrowed = market.usdc_escrowed.saturating_sub(refund);
         }
         OrderStatus::Deployed => {
             // Asserts that an off-chain leg failed and funds came back.
             require!(is_admin, SpotError::UnauthorizedAdmin);
             market.total_deployed = market.total_deployed.saturating_sub(order.deployed_amount);
-            market.fees_collected = market.fees_collected.saturating_sub(order.fee_paid);
+            // Reverse only spread that has NOT already been swept. Reversing
+            // past `fees_swept` would leave fees_collected < fees_swept and
+            // block later legitimate sweeps.
+            let reversible = market.fees_outstanding().min(order.fee_paid);
+            market.fees_collected = market.fees_collected.saturating_sub(reversible);
         }
         _ => return Err(SpotError::InvalidOrderStatus.into()),
     }
+
+    // Whichever path we took, the refund must now be covered by unreserved
+    // balance — otherwise it would be paid out of another trader's escrow or
+    // out of spread owed to the treasury. On the Pending path this restates
+    // the solvency invariant; on the Deployed path it is what confirms the
+    // failed leg actually returned the funds.
+    require!(
+        market.unreserved_usdc(ctx.accounts.market_usdc.amount) >= refund,
+        SpotError::InsufficientUnreservedFunds
+    );
 
     let admin_key = market.admin;
     let ticker = market.ticker.clone();

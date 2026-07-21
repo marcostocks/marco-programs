@@ -205,6 +205,20 @@ impl Market {
     pub fn fees_outstanding(&self) -> u64 {
         self.fees_collected.saturating_sub(self.fees_swept)
     }
+
+    /// USDC in the market account that is NOT spoken for: neither backing a
+    /// pending buy escrow nor earned spread awaiting sweep.
+    ///
+    /// `market_usdc` is a single pooled account holding three different
+    /// claims — traders' pending buy escrow, Marco's earned spread, and sale
+    /// proceeds returned by the broker. Any payout that is not itself drawn
+    /// against escrow must come out of this unreserved slice, or it silently
+    /// spends one trader's escrow on another trader's settlement.
+    pub fn unreserved_usdc(&self, balance: u64) -> u64 {
+        balance
+            .saturating_sub(self.usdc_escrowed)
+            .saturating_sub(self.fees_outstanding())
+    }
 }
 
 /// Per-trader eligibility record.
@@ -263,6 +277,16 @@ pub struct Order {
     /// Enforced against the attested execution price.
     pub limit_price: u64,
 
+    /// Buy only: the fewest shares the trader will accept for their capital.
+    /// `limit_price` caps what each share may cost but says nothing about
+    /// how many arrive, so without this a fill could convert the whole
+    /// deployment into a token dust position. Must be non-zero.
+    pub min_shares_out: u64,
+
+    /// Spread rate snapshotted when the order was placed, so a later
+    /// `set_fee_bps` cannot re-price an order already in flight.
+    pub fee_bps: u16,
+
     /// Attested execution price per share.
     pub execution_price: u64,
 
@@ -285,12 +309,16 @@ pub struct Order {
     pub updated_at: i64,
     pub attested_at: i64,
 
-    pub _reserved: [u8; 64],
+    pub _reserved: [u8; 54],
 }
 
 impl Order {
+    /// 8 (disc) + 1 (bump) + 32*2 (pubkeys) + 8 (order_id) + 1 (side)
+    /// + 1 (status) + 8*7 (u64 amounts) + 2 (fee_bps) + 32*2 (attestation
+    /// hashes) + 8*3 (timestamps) + 54 (reserved).
+    /// Total unchanged: `min_shares_out` and `fee_bps` came out of `_reserved`.
     pub const MAX_SIZE: usize =
-        8 + 1 + 32 + 32 + 8 + 1 + 1 + (8 * 6) + 32 + 32 + (8 * 3) + 64;
+        8 + 1 + 32 + 32 + 8 + 1 + 1 + (8 * 7) + 2 + 32 + 32 + (8 * 3) + 54;
 }
 
 /// Cumulative per-trader record for one market. The position token balance
