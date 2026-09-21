@@ -101,6 +101,17 @@ pub fn handler(
         min_shares_out,
         order.fee_bps
     );
+
+    emit!(crate::events::BuyPlaced {
+        market: market.key(),
+        ticker: market.ticker.clone(),
+        order_id,
+        trader: ctx.accounts.trader.key(),
+        usdc_amount,
+        limit_price,
+        min_shares_out,
+        fee_bps: order.fee_bps,
+    });
     Ok(())
 }
 

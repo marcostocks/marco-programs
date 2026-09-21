@@ -34,6 +34,10 @@ pub fn handler(ctx: Context<CancelBuy>) -> Result<()> {
     let refund = order.usdc_amount;
     require!(refund > 0, SpotError::ZeroAmount);
 
+    // Captured before the match rewrites the status, so the event can report
+    // which of the two cancel paths ran.
+    let was_deployed = order.status == OrderStatus::Deployed;
+
     match order.status {
         OrderStatus::Pending => {
             require!(is_admin || is_trader, SpotError::UnauthorizedTrader);
@@ -87,6 +91,15 @@ pub fn handler(ctx: Context<CancelBuy>) -> Result<()> {
     order.updated_at = Clock::get()?.unix_timestamp;
 
     msg!("Buy #{} cancelled | {} USDC refunded", order.order_id, refund);
+
+    emit!(crate::events::BuyCancelled {
+        market: market.key(),
+        ticker,
+        order_id: order.order_id,
+        trader: order.trader,
+        usdc_refunded: refund,
+        was_deployed,
+    });
     Ok(())
 }
 

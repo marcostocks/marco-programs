@@ -80,6 +80,14 @@ pub fn handler(ctx: Context<CancelSell>) -> Result<()> {
     market.shares_escrowed = market.shares_escrowed.saturating_sub(shares);
 
     msg!("Sell #{} cancelled | {} shares returned", order.order_id, shares);
+
+    emit!(crate::events::SellCancelled {
+        market: market.key(),
+        ticker,
+        order_id: order.order_id,
+        trader: order.trader,
+        shares_returned: shares,
+    });
     Ok(())
 }
 

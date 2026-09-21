@@ -119,6 +119,16 @@ pub fn handler(
         shares,
         limit_price
     );
+
+    emit!(crate::events::SellPlaced {
+        market: market.key(),
+        ticker,
+        order_id,
+        trader: ctx.accounts.trader.key(),
+        shares,
+        limit_price,
+        fee_bps: order.fee_bps,
+    });
     Ok(())
 }
 
