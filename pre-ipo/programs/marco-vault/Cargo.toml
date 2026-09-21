@@ -18,4 +18,7 @@ idl-build = ["anchor-lang/idl-build", "anchor-spl/idl-build"]
 
 [dependencies]
 anchor-lang = { version = "0.31.1", features = ["init-if-needed"] }
-anchor-spl = "0.31.1"
+# `metadata` pulls in the Metaplex Token Metadata CPI helpers, which re-export
+# mpl-token-metadata — do not depend on that crate directly or two incompatible
+# DataV2 types end up in the tree.
+anchor-spl = { version = "0.31.1", features = ["metadata"] }

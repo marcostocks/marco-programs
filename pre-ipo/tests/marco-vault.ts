@@ -14,6 +14,29 @@ import { assert } from "chai";
 
 const USDC = (n: number) => new anchor.BN(Math.round(n * 1e6));
 
+/**
+ * Validator time, not wall-clock time.
+ *
+ * The programs compare against `Clock::get()?.unix_timestamp`, which on a local
+ * validator advances with slot production and therefore falls steadily behind
+ * `Date.now()` over a run. A window opened at `Date.now() - 10` can already be
+ * in the validator's future by the time a later suite reaches it, which
+ * surfaces as a spurious `FundingNotStarted`.
+ *
+ * Each suite samples the skew in its own `before()`, so the residual drift is
+ * only what accumulates within that one suite.
+ */
+const makeClock = (conn: anchor.web3.Connection) => {
+  let skew = 0;
+  return {
+    sync: async () => {
+      const chain = await conn.getBlockTime(await conn.getSlot());
+      if (chain !== null) skew = chain - Math.floor(Date.now() / 1000);
+    },
+    now: () => Math.floor(Date.now() / 1000) + skew,
+  };
+};
+
 describe("marco-vault", () => {
   const provider = anchor.AnchorProvider.env();
   anchor.setProvider(provider);
@@ -44,6 +67,46 @@ describe("marco-vault", () => {
   // 3,000,000 gross - 5% = 2,850,000 subscribed. Matches the worked example
   // in docs/general/fees.md.
   const SUBSCRIBED = USDC(2_850_000);
+
+  /**
+   * Pull one event out of a confirmed transaction's logs.
+   *
+   * Deliberately the same path the off-chain watcher takes — fetch the
+   * transaction, run the logs through Anchor's EventParser — so a change that
+   * breaks the orchestrator's event decoding breaks this test too.
+   */
+  const parseOneEvent = async (signature: string, idlName: string): Promise<any> => {
+    // Anchor's TS EventParser lower-cases the leading character of the IDL
+    // name — `DepositMade` in the IDL arrives as `depositMade`. Any client
+    // matching on the IDL spelling silently finds nothing, so normalise here
+    // and let callers use the name they can actually see in the IDL.
+    const name = idlName.charAt(0).toLowerCase() + idlName.slice(1);
+
+    // `.rpc()` resolves at the provider's commitment, which can be ahead of
+    // the point where the transaction is queryable. The real watcher polls, so
+    // it tolerates this the same way rather than assuming instant indexing.
+    let tx = null;
+    for (let attempt = 0; attempt < 20 && tx === null; attempt++) {
+      tx = await conn.getTransaction(signature, {
+        commitment: "confirmed",
+        maxSupportedTransactionVersion: 0,
+      });
+      if (tx === null) await new Promise((r) => setTimeout(r, 100));
+    }
+    assert.isNotNull(tx, `transaction ${signature} never became queryable`);
+
+    const logs = tx!.meta!.logMessages ?? [];
+    const parser = new anchor.EventParser(program.programId, program.coder);
+    const seen: string[] = [];
+    for (const event of parser.parseLogs(logs)) {
+      if (event.name === name) return event.data;
+      seen.push(event.name);
+    }
+    assert.fail(
+      `no ${name} event in transaction logs. parsed: [${seen.join(", ")}]; ` +
+        `program data lines: ${logs.filter((l) => l.startsWith("Program data:")).length}`
+    );
+  };
 
   const airdrop = async (kp: Keypair) => {
     const sig = await conn.requestAirdrop(kp.publicKey, 10 * LAMPORTS_PER_SOL);
@@ -80,9 +143,11 @@ describe("marco-vault", () => {
 
     await mintTo(conn, admin, usdcMint, d1Usdc, admin, 2_500_000 * 1e6);
     await mintTo(conn, admin, usdcMint, d2Usdc, admin, 1_000_000 * 1e6);
+    await clock.sync();
   });
 
-  const now = () => Math.floor(Date.now() / 1000);
+  const clock = makeClock(conn);
+  const now = () => clock.now();
 
   it("initializes a vault with an immutable broker destination", async () => {
     const params = {
@@ -134,7 +199,7 @@ describe("marco-vault", () => {
   });
 
   it("takes the 5% fee upfront and mints claim tokens on the net", async () => {
-    await program.methods
+    const sig = await program.methods
       .deposit(USDC(1_000_000))
       .accounts({
         vault: vaultPda,
@@ -164,6 +229,18 @@ describe("marco-vault", () => {
 
     const b = await program.account.buyerState.fetch(buyer1);
     assert.equal(b.entryFeePaid.toString(), USDC(50_000).toString());
+
+    // The orchestrator creates every intent from an observed chain event, so
+    // the event has to survive a round trip through the transaction log
+    // exactly as the watcher will read it. This asserts the wire format, not
+    // just that emit! was called.
+    const ev = await parseOneEvent(sig, "DepositMade");
+    assert.equal(ev.vaultId, VAULT_ID);
+    assert.equal(ev.depositor.toBase58(), d1.publicKey.toBase58());
+    assert.equal(ev.accepted.toString(), USDC(1_000_000).toString(), "gross");
+    assert.equal(ev.fee.toString(), USDC(50_000).toString());
+    assert.equal(ev.subscribed.toString(), USDC(950_000).toString(), "net");
+    assert.isFalse(ev.autoSealed, "cap not reached yet");
   });
 
   it("locks claim tokens — a holder cannot transfer them", async () => {
@@ -551,9 +628,11 @@ describe("marco-vault: cancel + refund", () => {
     brokerUsdc = await createAccount(conn, admin, usdcMint, broker.publicKey);
     depUsdc = await createAccount(conn, admin, usdcMint, dep.publicKey);
     await mintTo(conn, admin, usdcMint, depUsdc, admin, 1_000_000 * 1e6);
+    await clock.sync();
   });
 
-  const now = () => Math.floor(Date.now() / 1000);
+  const clock = makeClock(conn);
+  const now = () => clock.now();
 
   it("cancels a funded vault and refunds principal less costs", async () => {
     await program.methods
@@ -672,7 +751,8 @@ describe("marco-vault: share-delivery election", () => {
 
   const VAULT_ID = "hkex-delivery-2026";
   const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
-  const now = () => Math.floor(Date.now() / 1000);
+  const clock = makeClock(conn);
+  const now = () => clock.now();
 
   before(async () => {
     for (const kp of [admin, broker, treasury, dA, dB]) {
@@ -705,6 +785,7 @@ describe("marco-vault: share-delivery election", () => {
     dBUsdc = await createAccount(conn, admin, usdcMint, dB.publicKey);
     await mintTo(conn, admin, usdcMint, dAUsdc, admin, 700_000 * 1e6);
     await mintTo(conn, admin, usdcMint, dBUsdc, admin, 400_000 * 1e6);
+    await clock.sync();
   });
 
   it("runs the full lifecycle, one holder taking shares and one taking cash", async () => {
@@ -808,7 +889,8 @@ describe("marco-vault: share-delivery election", () => {
       .signers([dA])
       .rpc();
 
-    // Tokens burned and entitlement recorded — and it cost nothing.
+    // Tokens burned and entitlement recorded — and it cost nothing (entry-fee
+    // vault: the fee was already paid at deposit).
     assert.equal((await getAccount(conn, dAShares)).amount.toString(), "0");
     assert.equal(
       (await getAccount(conn, dAUsdc)).amount.toString(),
@@ -869,5 +951,75 @@ describe("marco-vault: share-delivery election", () => {
     const dBGot = Number((await getAccount(conn, dBUsdc)).amount - dBBefore);
     // Cash cohort takes the settlement in full — no fee is skimmed here.
     assert.approximately(dBGot, 440_000 * 1e6, 2, "cash cohort redeems the full pool");
+  });
+
+  // ── Exit-fee model: a separate vault flipped with set_fee_timing ──────────
+  it("charges the fee at redemption when fee_at_exit is set: mints 1:1 gross", async () => {
+    const XID = "hkex-exit-2026";
+    const [xVault] = PublicKey.findProgramAddressSync(
+      [Buffer.from("vault"), admin.publicKey.toBuffer(), Buffer.from(XID)],
+      program.programId,
+    );
+    const [xMint] = PublicKey.findProgramAddressSync(
+      [Buffer.from("share_mint"), xVault.toBuffer()],
+      program.programId,
+    );
+    const xVaultUsdc = await createAccount(conn, admin, usdcMint, xVault, Keypair.generate());
+
+    const dep = Keypair.generate();
+    await conn.confirmTransaction(await conn.requestAirdrop(dep.publicKey, 2 * LAMPORTS_PER_SOL));
+    const depUsdc = await createAccount(conn, admin, usdcMint, dep.publicKey);
+    await mintTo(conn, admin, usdcMint, depUsdc, admin, USDC(1_000_000).toNumber());
+
+    await program.methods
+      .initializeVault({
+        vaultId: XID, depositCap: USDC(5_000_000), minDeposit: USDC(100), maxDeposit: USDC(0),
+        fundingStart: new anchor.BN(now() - 10), fundingDeadline: new anchor.BN(now() + 86400),
+        closeOutAt: new anchor.BN(now() + 86400 * 180), feeBps: 500,
+      })
+      .accounts({
+        vault: xVault, shareMint: xMint, vaultUsdc: xVaultUsdc, depositDestination: brokerUsdc,
+        admin: admin.publicKey, operator: admin.publicKey, treasury: treasury.publicKey,
+        tokenProgram: TOKEN_PROGRAM_ID, systemProgram: anchor.web3.SystemProgram.programId, rent: anchor.web3.SYSVAR_RENT_PUBKEY,
+      })
+      .signers([admin])
+      .rpc();
+
+    // Flip to exit-fee before any deposit, then a deposit mints 1:1 on the gross.
+    await program.methods.setFeeTiming(true).accounts({ vault: xVault, admin: admin.publicKey }).signers([admin]).rpc();
+    assert.isTrue((await program.account.vault.fetch(xVault)).feeAtExit, "fee_at_exit set");
+
+    await program.methods.openFunding().accounts({ vault: xVault, admin: admin.publicKey }).signers([admin]).rpc();
+
+    const depShares = await createAccount(conn, admin, xMint, dep.publicKey);
+    const [xBuyer] = PublicKey.findProgramAddressSync(
+      [Buffer.from("buyer"), xVault.toBuffer(), dep.publicKey.toBuffer()],
+      program.programId,
+    );
+    await program.methods
+      .deposit(USDC(1_000_000))
+      .accounts({
+        vault: xVault, buyerState: xBuyer, shareMint: xMint, depositorUsdc: depUsdc, vaultUsdc: xVaultUsdc,
+        depositorShares: depShares, depositor: dep.publicKey,
+        tokenProgram: TOKEN_PROGRAM_ID, systemProgram: anchor.web3.SystemProgram.programId,
+      })
+      .signers([dep])
+      .rpc();
+
+    // $1,000,000 in → 1,000,000 tokens (gross, no entry fee), nothing escrowed.
+    assert.equal(Number((await getAccount(conn, depShares)).amount), 1_000_000 * 1e6, "mints 1:1 gross");
+    const xv = await program.account.vault.fetch(xVault);
+    assert.equal(xv.totalShares.toNumber(), 1_000_000 * 1e6, "total_shares is the gross");
+    assert.equal(xv.feesEscrowed.toNumber(), 0, "no fee taken at deposit");
+
+    // And the timing is now locked — you cannot change it once holders exist.
+    let threw = false;
+    try {
+      await program.methods.setFeeTiming(false).accounts({ vault: xVault, admin: admin.publicKey }).signers([admin]).rpc();
+    } catch (e) {
+      threw = true;
+      assert.include(String(e), "FeeTimingLocked");
+    }
+    assert.isTrue(threw, "set_fee_timing is rejected after a deposit");
   });
 });

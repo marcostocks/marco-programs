@@ -1,7 +1,21 @@
 use anchor_lang::prelude::*;
 
 use crate::errors::VaultError;
-use crate::state::Vault;
+use crate::state::{Vault, VaultPhase};
+
+/// Extend or adjust the subscription window's deadline. Admin only, and only
+/// while the vault is still in Funding — this lengthens an open window, it does
+/// not revive a sealed or settled one. The new deadline must be in the future;
+/// to close a window early use `seal_funding` rather than a past timestamp.
+pub fn set_funding_deadline(ctx: Context<AdminAction>, new_deadline: i64) -> Result<()> {
+    let vault = &mut ctx.accounts.vault;
+    vault.require_phase(VaultPhase::Funding)?;
+    let now = Clock::get()?.unix_timestamp;
+    require!(new_deadline > now, VaultError::DeadlineInPast);
+    vault.funding_deadline = new_deadline;
+    msg!("Vault {} funding deadline set to {}", vault.vault_id, new_deadline);
+    Ok(())
+}
 
 /// Freeze or unfreeze deposits (emergency control). Admin only.
 pub fn freeze_deposits(ctx: Context<AdminAction>, frozen: bool) -> Result<()> {
@@ -36,6 +50,27 @@ pub fn set_transfer_lock(ctx: Context<AdminAction>, locked: bool) -> Result<()> 
         "Vault {} claim tokens {}",
         vault.vault_id,
         if locked { "LOCKED" } else { "UNLOCKED (holders must call unlock_shares)" }
+    );
+    Ok(())
+}
+
+/// Choose when the protocol fee is charged. Admin only, and only before any
+/// deposit has been taken — the token model (net vs gross) has to be fixed
+/// before the first depositor mints against it, or holders would be minted on
+/// inconsistent terms.
+///
+/// `false` (the default) is the original entry-fee behaviour: the fee comes off
+/// each deposit and claim tokens are the net. `true` mints tokens 1:1 against
+/// the gross deposit and defers the fee to redemption. Existing vaults created
+/// before this instruction existed read `false` and are unaffected.
+pub fn set_fee_timing(ctx: Context<AdminAction>, fee_at_exit: bool) -> Result<()> {
+    let vault = &mut ctx.accounts.vault;
+    require!(vault.total_shares == 0, VaultError::FeeTimingLocked);
+    vault.fee_at_exit = fee_at_exit;
+    msg!(
+        "Vault {} fee charged at {}",
+        vault.vault_id,
+        if fee_at_exit { "REDEMPTION (mint gross)" } else { "DEPOSIT (mint net)" }
     );
     Ok(())
 }

@@ -7,12 +7,16 @@ use crate::state::{Vault, VaultPhase};
 /// Realized -> Claimable. Called after the broker has wired the net USDC
 /// back into the vault's USDC account.
 ///
-/// NO fee is taken here. The protocol fee was deducted upfront at deposit,
-/// so settlement is a pure pass-through and redemption pays out in full.
+/// No fee is charged here in either mode; settlement only opens redemption.
+/// `redeemable_amount` is set to the vault balance less any fee already
+/// *collected* and awaiting sweep — so the undeployed remainder and rounding
+/// dust stay redeemable and nothing is stranded:
 ///
-/// `redeemable_amount` is set to the FULL vault balance less any earned fee
-/// still awaiting sweep, so the undeployed remainder and rounding dust stay
-/// redeemable and no USDC is stranded.
+/// - Entry-fee vault: the fee was earned at deployment, so it sits in
+///   `fees_collected` now and is excluded from the pool here.
+/// - Exit-fee vault: no fee has been collected yet (it is skimmed at each
+///   `claim`), so `fees_outstanding` is zero and the whole balance is
+///   redeemable; the fee is realised only as holders redeem.
 pub fn handler(ctx: Context<Settle>, net_amount: u64) -> Result<()> {
     let vault = &mut ctx.accounts.vault;
     vault.require_phase(VaultPhase::Realized)?;

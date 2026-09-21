@@ -6,8 +6,18 @@ use crate::lock;
 use crate::state::{BuyerState, Vault, VaultPhase};
 
 /// Burn claim tokens and receive pro-rata USDC.
-/// payout = redeemable_amount * shares / total_shares (u128 math).
-/// Allowed in Claimable and Winding; blocked once Concluded.
+/// gross = redeemable_amount * shares / cash_shares (u128 math). An exit-fee
+/// vault then deducts the fee and pays the net; an entry-fee vault already took
+/// the fee at deposit and pays the full gross. Allowed in Claimable and
+/// Winding; blocked once Concluded.
+///
+/// The exit fee is `fee_bps` of the REDEMPTION VALUE — `fee_on(gross)`, what the
+/// holder is actually withdrawing. It therefore scales with the outcome: on a
+/// 1,000 subscription at 500 bps, a flat deal pays 950, a +20% deal pays 1,140
+/// (fee 60) and a −20% deal pays 760 (fee 40). This is the conventional exit
+/// load: the protocol takes its cut of the proceeds, sharing the outcome rather
+/// than charging a fixed amount regardless of it. Because it is a fraction of
+/// `gross` it can never exceed it, so the payout cannot underflow.
 pub fn handler(ctx: Context<Claim>, shares_amount: u64) -> Result<()> {
     let vault_ai = ctx.accounts.vault.to_account_info();
     let vault = &mut ctx.accounts.vault;
@@ -18,7 +28,18 @@ pub fn handler(ctx: Context<Claim>, shares_amount: u64) -> Result<()> {
     require!(shares_amount > 0, VaultError::ZeroRedemption);
     require!(vault.redeemable_amount > 0, VaultError::NoRedeemableAmount);
 
-    let payout = vault.redeem_amount(shares_amount);
+    // Gross pro-rata share of the redeemable pool.
+    let gross = vault.redeem_amount(shares_amount);
+    require!(gross > 0, VaultError::ZeroRedemption);
+
+    // Exit-fee vaults charge the fee on the redemption value, so it scales with
+    // the outcome. The holder is paid the net and the fee stays in the vault as
+    // collected fee for the treasury to sweep. Entry-fee vaults already took it
+    // at deposit, so they pay the full gross. `settle` leaves the whole balance
+    // redeemable for an exit-fee vault (nothing was withheld earlier), so the
+    // fee is realised only as it is skimmed here.
+    let fee = if vault.fee_at_exit { vault.fee_on(gross) } else { 0 };
+    let payout = gross.checked_sub(fee).ok_or(VaultError::Overflow)?;
     require!(payout > 0, VaultError::ZeroRedemption);
 
     require!(
@@ -88,13 +109,25 @@ pub fn handler(ctx: Context<Claim>, shares_amount: u64) -> Result<()> {
         vault.total_redeemed_shares.checked_add(shares_amount).ok_or(VaultError::Overflow)?;
     vault.total_redeemed_usdc =
         vault.total_redeemed_usdc.checked_add(payout).ok_or(VaultError::Overflow)?;
+    // The exit fee (0 for an entry-fee vault) stays in the vault's USDC account
+    // and is booked as collected, so `sweep_fee` can move it to the treasury.
+    vault.fees_collected =
+        vault.fees_collected.checked_add(fee).ok_or(VaultError::Overflow)?;
 
     let buyer = &mut ctx.accounts.buyer_state;
     buyer.shares_redeemed =
         buyer.shares_redeemed.checked_add(shares_amount).ok_or(VaultError::Overflow)?;
     buyer.usdc_redeemed = buyer.usdc_redeemed.checked_add(payout).ok_or(VaultError::Overflow)?;
 
-    msg!("Claim: {} tokens -> {} USDC", shares_amount, payout);
+    msg!("Claim: {} tokens -> {} USDC (fee {})", shares_amount, payout, fee);
+
+    emit!(crate::events::ClaimMade {
+        vault: vault.key(),
+        vault_id,
+        claimant: ctx.accounts.claimant.key(),
+        shares_burned: shares_amount,
+        usdc_paid: payout,
+    });
     Ok(())
 }
 

@@ -1,6 +1,7 @@
 use anchor_lang::prelude::*;
 
 pub mod errors;
+pub mod events;
 pub mod instructions;
 pub mod lock;
 pub mod state;
@@ -8,7 +9,7 @@ pub mod state;
 use instructions::*;
 use state::VaultPhase;
 
-declare_id!("Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS");
+declare_id!("CgJnDJHjhkMgrkaky3Dp9dD89NzXRMP287bqmgCPMC8q");
 
 /// Marco Pre-IPO Subscription Vaults.
 ///
@@ -157,6 +158,24 @@ pub mod marco_vault {
         instructions::admin::update_operator(ctx, new_operator)
     }
 
+    /// Extend the subscription window's deadline. Admin only, only while the
+    /// vault is still Funding, and only to a future timestamp.
+    pub fn set_funding_deadline(
+        ctx: Context<AdminAction>,
+        new_deadline: i64,
+    ) -> Result<()> {
+        instructions::admin::set_funding_deadline(ctx, new_deadline)
+    }
+
+    /// Charge the protocol fee at redemption (mint gross) instead of at deposit
+    /// (mint net). Admin only, and only before the first deposit.
+    pub fn set_fee_timing(
+        ctx: Context<AdminAction>,
+        fee_at_exit: bool,
+    ) -> Result<()> {
+        instructions::admin::set_fee_timing(ctx, fee_at_exit)
+    }
+
     /// Lock or unlock claim tokens in holders' wallets. Locked by default:
     /// tokens are frozen on mint and can only be burned back to the vault.
     /// Clearing the flag stops new freezes; existing accounts still need
@@ -172,6 +191,18 @@ pub mod marco_vault {
     /// been lifted. Permissionless — it only works after admin unlocks.
     pub fn unlock_shares(ctx: Context<UnlockShares>) -> Result<()> {
         instructions::unlock_shares::handler(ctx)
+    }
+
+    /// Attach Metaplex token metadata to the vault's claim mint so wallets show
+    /// a name and symbol. Safe on a mint that already has supply; reads the
+    /// vault without writing it. Admin only.
+    pub fn create_share_metadata(
+        ctx: Context<CreateShareMetadata>,
+        name: String,
+        symbol: String,
+        uri: String,
+    ) -> Result<()> {
+        instructions::create_share_metadata::handler(ctx, name, symbol, uri)
     }
 }
 

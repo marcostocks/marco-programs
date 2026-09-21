@@ -46,15 +46,19 @@ pub fn handler(ctx: Context<DeployCapital>, amount: u64) -> Result<()> {
     vault.total_deployed = vault.total_deployed.checked_add(amount).ok_or(VaultError::Overflow)?;
     if vault.phase == VaultPhase::Sourced {
         vault.phase = VaultPhase::Deployed;
-        // Capital has now gone into the deal, so the entry fee is earned.
-        // Before this point it sat refundable in `fees_escrowed` and would
-        // have gone back to depositors with their principal on a cancel.
-        vault.fees_collected = vault
-            .fees_collected
-            .checked_add(vault.fees_escrowed)
-            .ok_or(VaultError::Overflow)?;
-        msg!("Entry fee earned on deployment: {}", vault.fees_escrowed);
-        vault.fees_escrowed = 0;
+        // Entry-fee vaults earn the fee now: capital has gone into the deal, so
+        // the fee that sat refundable in `fees_escrowed` (returned with
+        // principal on a pre-deploy cancel) becomes collected. Exit-fee vaults
+        // escrow nothing here — their fee is skimmed at redemption — so this is
+        // a no-op for them.
+        if vault.fees_escrowed > 0 {
+            vault.fees_collected = vault
+                .fees_collected
+                .checked_add(vault.fees_escrowed)
+                .ok_or(VaultError::Overflow)?;
+            msg!("Entry fee earned on deployment: {}", vault.fees_escrowed);
+            vault.fees_escrowed = 0;
+        }
     }
 
     msg!("Deployed {} to broker | total {}/{}", amount, vault.total_deployed, vault.deployable_amount);

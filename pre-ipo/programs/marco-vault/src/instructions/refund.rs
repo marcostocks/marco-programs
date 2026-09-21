@@ -88,6 +88,14 @@ pub fn handler(ctx: Context<Refund>, shares_amount: u64) -> Result<()> {
     buyer.usdc_refunded = buyer.usdc_refunded.checked_add(payout).ok_or(VaultError::Overflow)?;
 
     msg!("Refund: {} tokens -> {} USDC", shares_amount, payout);
+
+    emit!(crate::events::RefundMade {
+        vault: vault.key(),
+        vault_id,
+        holder: ctx.accounts.holder.key(),
+        shares_burned: shares_amount,
+        usdc_paid: payout,
+    });
     Ok(())
 }
 

@@ -3,10 +3,10 @@ seeds = false
 skip-lint = false
 
 [programs.localnet]
-marco_vault = "Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS"
+marco_vault = "CgJnDJHjhkMgrkaky3Dp9dD89NzXRMP287bqmgCPMC8q"
 
 [programs.devnet]
-marco_vault = "Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS"
+marco_vault = "CgJnDJHjhkMgrkaky3Dp9dD89NzXRMP287bqmgCPMC8q"
 
 [registry]
 url = "https://api.apr.dev"

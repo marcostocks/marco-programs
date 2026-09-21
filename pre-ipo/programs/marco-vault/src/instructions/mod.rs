@@ -16,6 +16,7 @@ pub mod refund;
 pub mod sweep_fee;
 pub mod admin;
 pub mod unlock_shares;
+pub mod create_share_metadata;
 
 pub use initialize::*;
 pub use open_funding::*;
@@ -35,3 +36,4 @@ pub use refund::*;
 pub use sweep_fee::*;
 pub use admin::*;
 pub use unlock_shares::*;
+pub use create_share_metadata::*;

@@ -1,5 +1,5 @@
 use anchor_lang::prelude::*;
-use anchor_spl::token::{self, Burn, Mint, Token, TokenAccount, Transfer};
+use anchor_spl::token::{self, Burn, Mint, Token, TokenAccount};
 
 use crate::errors::VaultError;
 use crate::lock;
@@ -9,13 +9,24 @@ use crate::state::{BuyerState, Vault, VaultPhase};
 ///
 /// Allowed only while the vault is Live and the election window is open.
 ///
-/// Retaining a position as spot is FREE — the protocol fee was already taken
-/// upfront at deposit, and there is no second charge here. `shares_amount`
-/// claim tokens are burned, removing them from the cash cohort so the
-/// remaining holders are never diluted. The vault records the real-share
-/// entitlement (`shares_allocated * shares_amount / total_shares`); the
-/// broker delivers those shares to the holder's brokerage account off-chain
-/// and reconciles against `buyer_state.underlying_delivered`.
+/// Taking delivery is FREE in both fee modes:
+/// - Entry-fee vault: the fee was already taken at deposit.
+/// - Exit-fee vault: the exit fee is charged only on a *cash* redemption
+///   (`claim`), as a cut of the proceeds withdrawn. A delivery withdraws
+///   shares, not cash, so there are no proceeds to cut here.
+///
+/// NOTE (open decision): because an exit-fee vault charges nothing on delivery,
+/// electing delivery is a fee-free exit — a holder can avoid the exit load by
+/// taking shares instead of cashing out. That is consistent with incentivising
+/// holders to keep the real asset (which feeds the spot product), but it does
+/// mean the total fee is lower on a share-heavy vault than on a cash-only one.
+/// If delivery should also carry the fee, it must be charged here explicitly.
+///
+/// `shares_amount` claim tokens are burned, removing them from the cash cohort
+/// so the remaining holders are never diluted. The vault records the real-share
+/// entitlement (`shares_allocated * shares_amount / total_shares`); the broker
+/// delivers those shares off-chain and reconciles against
+/// `buyer_state.underlying_delivered`.
 pub fn handler(ctx: Context<ElectDelivery>, shares_amount: u64) -> Result<()> {
     let vault_ai = ctx.accounts.vault.to_account_info();
     let vault = &mut ctx.accounts.vault;
@@ -92,6 +103,14 @@ pub fn handler(ctx: Context<ElectDelivery>, shares_amount: u64) -> Result<()> {
         shares_amount,
         underlying
     );
+
+    emit!(crate::events::DeliveryElected {
+        vault: vault.key(),
+        vault_id,
+        holder: ctx.accounts.holder.key(),
+        shares_burned: shares_amount,
+        underlying_shares: underlying,
+    });
     Ok(())
 }
 

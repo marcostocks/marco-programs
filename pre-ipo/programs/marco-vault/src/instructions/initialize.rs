@@ -72,7 +72,10 @@ pub fn handler(ctx: Context<InitializeVault>, p: VaultParams) -> Result<()> {
     vault.shares_allocated = 0;
     vault.election_deadline = 0;
     vault.delivered_shares = 0;
-    vault._reserved = [0u8; 95];
+    // Entry-fee by default (mint net). Admin flips it with `set_fee_timing`
+    // before the first deposit to charge at redemption instead.
+    vault.fee_at_exit = false;
+    vault._reserved = [0u8; 94];
 
     msg!(
         "Vault {} created | cap {} | fee {} bps | broker {}",

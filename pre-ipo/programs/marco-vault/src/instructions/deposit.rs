@@ -59,8 +59,11 @@ pub fn handler(ctx: Context<Deposit>, amount: u64) -> Result<()> {
     // open a sub-minimum dust position from an over-sized request.
     require!(accepted >= vault.min_deposit, VaultError::BelowMinimum);
 
-    // Fee off the top; the depositor subscribes the remainder.
-    let fee = vault.entry_fee(accepted);
+    // Entry-fee vaults take the fee off the top now, so the depositor
+    // subscribes (and mints against) the net. Exit-fee vaults take nothing
+    // here — the deposit mints 1:1 against the gross and the fee is charged
+    // from the redemption instead.
+    let fee = if vault.fee_at_exit { 0 } else { vault.fee_on(accepted) };
     let subscribed = accepted.checked_sub(fee).ok_or(VaultError::Overflow)?;
     require!(subscribed > 0, VaultError::ZeroDeposit);
 
@@ -150,10 +153,23 @@ pub fn handler(ctx: Context<Deposit>, amount: u64) -> Result<()> {
     );
 
     // Auto-seal when the cap is reached.
-    if vault.total_deposits >= vault.deposit_cap {
+    let auto_sealed = vault.total_deposits >= vault.deposit_cap;
+    if auto_sealed {
         vault.phase = VaultPhase::Sealed;
         msg!("Vault sealed: cap reached");
     }
+
+    emit!(crate::events::DepositMade {
+        vault: vault.key(),
+        vault_id,
+        depositor: ctx.accounts.depositor.key(),
+        intent: amount,
+        accepted,
+        fee,
+        subscribed,
+        total_deposits: vault.total_deposits,
+        auto_sealed,
+    });
     Ok(())
 }
 

@@ -11,6 +11,9 @@ pub enum VaultError {
     #[msg("Subscription window has closed")]
     FundingClosed,
 
+    #[msg("New funding deadline must be in the future")]
+    DeadlineInPast,
+
     #[msg("Deposits are currently frozen by admin")]
     DepositsFrozen,
 
@@ -88,6 +91,9 @@ pub enum VaultError {
 
     #[msg("No cash cohort remains — every holder elected share delivery")]
     NoCashCohort,
+
+    #[msg("Fee timing can only be set before any deposits are made")]
+    FeeTimingLocked,
 
     #[msg("Arithmetic overflow")]
     Overflow,
