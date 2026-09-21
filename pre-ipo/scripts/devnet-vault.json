@@ -1,0 +1,12 @@
+{
+  "cluster": "https://api.devnet.solana.com",
+  "programId": "CgJnDJHjhkMgrkaky3Dp9dD89NzXRMP287bqmgCPMC8q",
+  "vaultId": "HK-IPO-DEMO-001",
+  "vault": "HQESNkcURxqDfmSjXxTP9zXZdCshCnrxLnbc58VS8TiR",
+  "shareMint": "GDhoeGMgkuCza7b76ZcnVeFCoK2PhZkYgm7rz8fPrjYF",
+  "vaultUsdc": "4sJmdZZRQG2FRFaQAVMMP4kW26uVLTRcH5zkJh9o1iVb",
+  "depositDestination": "T2Vo4K8QtyqocfkbA8jRtXnPpqnwnFghxjgtu6nNS6j",
+  "usdcMint": "C7e4CPxXm6u5W1hahkPR1TmHfMdjtVwKxhurYoMFG9ef",
+  "admin": "DAVKK3RoykYciooErx8yiRTPvPFdWb68ru8dn9QXqUNm",
+  "initTx": "3vgwsJatEcU1DMmYknST7CmZ7nW8zRyaT3fQYNHpQthoBfEsMfhXomXG1j68E6Yuv4BLe4db6XaaWmrLFxQoKmPA"
+}
