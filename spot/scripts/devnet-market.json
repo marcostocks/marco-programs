@@ -1,0 +1,15 @@
+{
+  "cluster": "https://api.devnet.solana.com",
+  "programId": "44PTF8po9JW5KK5VVH295XRFfNm1x9KuwcAVsvYGgn9e",
+  "ticker": "0700.HK",
+  "market": "7vFWyzosgQ5J9xmMHtkWxoBieVKabi55cUFt7cAYZ8ks",
+  "positionMint": "8EbMgdBmp6t2E3xQaf4BN6oc8CYESEPQyPKSzjdXsPnb",
+  "marketUsdc": "3RpPP6n1Vv9fLkfUnLTjsFBRDtXuZXiqog5c6fLDm8PH",
+  "positionEscrow": "6ocCa1R4yhFgedoKpVCG79XzmCaGng93dJccBx7iDEBj",
+  "usdcMint": "C7e4CPxXm6u5W1hahkPR1TmHfMdjtVwKxhurYoMFG9ef",
+  "settlementDestination": "DWy98MywcJz7BH6GPm4vpyKgrrTQRZSEhSJgCbtwfk4P",
+  "admin": "DAVKK3RoykYciooErx8yiRTPvPFdWb68ru8dn9QXqUNm",
+  "operator": "DAVKK3RoykYciooErx8yiRTPvPFdWb68ru8dn9QXqUNm",
+  "treasury": "DAVKK3RoykYciooErx8yiRTPvPFdWb68ru8dn9QXqUNm",
+  "initTx": "3arAiYjHE8ka4jJ2VGSTUNkcFwP8W1DeC93GMBvp6PtZSVdMTa2TMuUE2wagy5MUgjJJ9gaCui9tV3wWRiLTynvj"
+}
