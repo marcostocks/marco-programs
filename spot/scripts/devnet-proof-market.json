@@ -1,0 +1,40 @@
+{
+  "cluster": "https://api.devnet.solana.com",
+  "ticker": "9988.HK",
+  "programId": "44PTF8po9JW5KK5VVH295XRFfNm1x9KuwcAVsvYGgn9e",
+  "market": "E4rR6nZMVYNeX2jxs3kvVywp9Fyo5kaQcojUQmJSpZtR",
+  "positionMint": "31SM42jxPY3ZqEBBUHQzqK1N5t8xzMDTnSGheATm35Jy",
+  "marketUsdc": "HnsLPV131JD6rRNzYa63w6eCVkQ838eKYNUymtR7M3RG",
+  "positionEscrow": "A9LbeU41eBCfDBh12ZCUqgJX2fGxQoQX7p2BmqdepXSi",
+  "settlementDestination": "4hCTXQrwbQJH76ScuHmWVo9i1HWrCQ5ZEn6SSC3zRJdT",
+  "usdcMint": "C7e4CPxXm6u5W1hahkPR1TmHfMdjtVwKxhurYoMFG9ef",
+  "holderA": {
+    "wallet": "7DsutpZChdN1wYymujPWwEkcxpj7evhZ62nEJk5pbXyr",
+    "position": "645JDEPSRCMTTnmm1QDZymZXNbwwgriXr8YHnU59CeKh",
+    "usdc": "9rgXbCqLF5wmp2uMjSKuvipkU4TTzVrfWrRN4S7bGc9H"
+  },
+  "holderB": {
+    "wallet": "92AGM6XVivbUjgse6RdM38GSpgdoZPsG7LUqzkzTn7yd",
+    "position": "CHENBLsxnyfc7XmMVEMhAoVRUMb8Vf278rKAD971PYhq",
+    "usdc": "AuXZapWcCAdLWmywFGRjKFwPeyFAumkdu1Gv2FKwgCou"
+  },
+  "final": {
+    "positionSupply": 19,
+    "holderA": 19,
+    "holderB": 0,
+    "positionEscrow": 0,
+    "usdcEscrow": 15.225,
+    "conversionPartner": 1990
+  },
+  "signatures": {
+    "initializeMarket": "35sXgtvxxcQzuZmVfiXJsdUwhppd42EadjrL5MufKBPNrq7HdeK561cKCSozXGffXYyS33Mzp6dQBrUSWZkX85hG",
+    "placeBuy_A": "48ExrnjxSz9ogG8wTfs9J76FcoWa6cZTyMSUvjVya2E1YWXnj4GHWJ2X86haazUoupHN1DX17bY5tB1Vspuen6yF",
+    "deployBuy_A": "4Fwje8h2xNTkHd1gQohDkQiNmebgRSugDZpzzDacEaTvxESWCKkKVnapqNMiUZYzAdzQ5BxTJrbuQQQB65M5o83i",
+    "confirmBuy_A": "Hqt5HKzP8771xJg9PG8ebhFBw35hf81v9cG25cVtZDBvNnqNvZEjLe8dRxQ1aCZt5EfVvfZzPYdm3yST2CrcJcE",
+    "placeBuy_B": "4iah6uUjUgbhDkYL1VUu4Q4h4kiuW9ZMyfcbqvoCHsAfhLP6sBRctmpqzGvMrT7J4DTKdwbXaAiUHb186sgS92D3",
+    "deployBuy_B": "5AKBVduwqg5zRr5duy8HtB7a41T8xetCXcsQ61rsbxEKFJCiXtJnrU8U26xSvAs255cfiwKHWeHxefDVcynJotc8",
+    "confirmBuy_B": "5uXNA6YXHih7dvVyWcARBrMGNPoq6x93UsvHKaSNigpGarovJd5hBhFnEV2doSeTzirR5qezMdA7nitMarGt42AD",
+    "placeSell": "w4rw3FNLvg8GHPbbnPXNnxnxsY2ZXKycFhQKRE94wMQpVxw65SgQYrKJmxTCCipjfkgLiDBYasngF6P6CuKSi7c",
+    "settleSell": "3wxT16zKbTLfwL3wvt4JRUxvgbQoRzTsnzcuSVNM72edpkxcjCYXzYDAcSA26au3pAqpb6QaDinwdQz5aCYjqRkj"
+  }
+}

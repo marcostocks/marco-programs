@@ -1,0 +1,32 @@
+{
+  "cluster": "https://api.devnet.solana.com",
+  "ticker": "1810.HK",
+  "programId": "44PTF8po9JW5KK5VVH295XRFfNm1x9KuwcAVsvYGgn9e",
+  "market": "EvEUDLFXXLiSRTapPsGDsEf9Hb17XzQrBj9tjv22pV3a",
+  "positionMint": "9x3Nkp6rmXoPehYgYcAKjJ5sxkB8sGp2bY9zJ8NpPscK",
+  "marketUsdc": "F8aJ7jBkPVemq6veCLKnX7SCxYukwRQctN3WGcMXc8PK",
+  "positionEscrow": "CYh5nNWmXskYneDPhjU7z89PgjCMZrYLJ4aDXF7K1E8n",
+  "settlementDestination": "EgiTCbX5hyMAvdnPi2SVisCezavxFUxWuXrPJknE4Sxc",
+  "usdcMint": "C7e4CPxXm6u5W1hahkPR1TmHfMdjtVwKxhurYoMFG9ef",
+  "alice": {
+    "wallet": "FLwooYinY3oTxmZ8rcJoGYVFutb3AG7RJV2gR1jhXvG4",
+    "position": "Gofu8i97FfiErVYC4daFucAUC4R5M3bPFuEQ3gDJ6M7h",
+    "usdc": "HGcxno8NChenBEKamqYyJDFSNiXwsugVidsSuLVjACVE"
+  },
+  "final": {
+    "positionSupply": 0,
+    "alicePosition": 0,
+    "aliceUsdc": 5039.775,
+    "positionEscrow": 0,
+    "usdcEscrow": 10.225,
+    "msb": 995
+  },
+  "signatures": {
+    "initializeMarket": "3zf5QRsBbjh4jebfh8ZVecDp68hyC84okzg5QAeKpvncsonNXkmtJ4DkQZApQHC9WfbsqCdsBmbB9wtW6uNaUx72",
+    "placeBuy_A": "4ajZk8GR1JkkJKNCaLvorFm14aVbHFg2hhd7XsKJvh4mq1DC4FQaaCKqB6RcsbGBrpjWPmQF9rAr1aSQnctQ16N1",
+    "deployBuy_A": "4rEdKSQ8sDVFMt8hMMSjDg8hvgucCEpzhHRZpkGbKf6j1RCze91N2m5YoT4wHwqHLwQxmqG8MuhYusG485tyJNGj",
+    "confirmBuy_A": "34KPDmSV4VmrqgLS2SY5yXAHyuHq8Q3Yc1r4FpENsuTsnVEyq4VEcyvuctq6JNk6ChGysEX6WYshH75U4p7LzJsv",
+    "placeSell": "2DViWZuWkae3Yr78whRqD1Uh6kXfP2P88XdN5t29n3eVxivxGF79jPDTDBybYyzFKynT6jjCwN3itzPu4rknhUv",
+    "settleSell": "sebtfG5AvTZCevpjDPYX3LhYCi27Jfk3qTCLSNzp4idueYi2ZqYYcsmPso1TnfQJHvrP8eCfMSVN4buffzFanM4"
+  }
+}
