@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "marco-mockup",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [".claude/mv-preview-server.js"],
+      "port": 8099
+    }
+  ]
+}

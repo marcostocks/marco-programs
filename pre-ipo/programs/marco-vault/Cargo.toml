@@ -1,0 +1,24 @@
+[package]
+name = "marco-vault"
+version = "0.1.0"
+description = "Marco IPO Subscription Vaults — on-chain vault for HK IPO access via USDC"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib", "lib"]
+name = "marco_vault"
+
+[features]
+no-entrypoint = []
+no-idl = []
+no-log-ix-name = []
+cpi = ["no-entrypoint"]
+default = []
+idl-build = ["anchor-lang/idl-build", "anchor-spl/idl-build"]
+
+[dependencies]
+anchor-lang = { version = "0.31.1", features = ["init-if-needed"] }
+# `metadata` pulls in the Metaplex Token Metadata CPI helpers, which re-export
+# mpl-token-metadata — do not depend on that crate directly or two incompatible
+# DataV2 types end up in the tree.
+anchor-spl = { version = "0.31.1", features = ["metadata"] }

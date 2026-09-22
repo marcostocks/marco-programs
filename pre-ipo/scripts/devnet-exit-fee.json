@@ -1,0 +1,10 @@
+{
+  "cluster": "https://api.devnet.solana.com",
+  "vaultId": "EXITFEE-DEMO-04",
+  "vault": "4gDCNHPb4n8PxPRztgCRrjc67zuKhvEgDb5WnRKE8xz6",
+  "shareMint": "9CaRX7Ag56SdkgGnufct8dJ6nPXeEU464QAFxuxPR2Ur",
+  "model": "exit-fee",
+  "depositedTokens": 1000,
+  "redeemedNet": 950,
+  "feeCollected": 50
+}
