@@ -1,0 +1,9 @@
+# Each workspace carries its own .gitignore for build output; these are the
+# things that can appear anywhere in the tree.
+.DS_Store
+node_modules/
+target/
+.anchor/
+test-ledger/
+.env
+*-keypair.json
