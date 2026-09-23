@@ -4,6 +4,8 @@ Hong Kong–listed shares and pre-IPO allocations, bought with stablecoins and
 backed 1:1 by real shares in regulated custody. Two Anchor programs, both live
 on devnet and both exercised through their full lifecycle on chain.
 
+**[Read the on-chain proof →](https://marcostocks.github.io/marco-programs/docs/)** — both lifecycles walked end to end, every figure linked to the confirmed transaction it was read from.
+
 Retail investors outside Hong Kong can rarely touch HKEX directly, and pre-IPO
 allocations are effectively closed to them — they clear through brokers with
 syndicate access and minimums far above a retail ticket. Marco puts both behind
