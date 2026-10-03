@@ -1,4 +1,4 @@
-# Marco — Chinese equity access on Solana
+# Marco — APAC equity access on Solana
 
 Hong Kong–listed shares and pre-IPO allocations, bought with stablecoins and
 backed 1:1 by real shares in regulated custody. Two Anchor programs, both live
