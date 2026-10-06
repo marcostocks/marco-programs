@@ -18,7 +18,7 @@ import vaultIdl from "../target/idl/marco_vault.json";
 import type { MarcoVault } from "../target/types/marco_vault";
 
 const SPOT_IDL = JSON.parse(
-  fs.readFileSync(`${__dirname}/../../shared/marco-artifacts/idl/marco_spot.json`, "utf8"),
+  fs.readFileSync(`${__dirname}/../../platform/shared/marco-artifacts/idl/marco_spot.json`, "utf8"),
 );
 const SPOT = new PublicKey("44PTF8po9JW5KK5VVH295XRFfNm1x9KuwcAVsvYGgn9e");
 const VAULT = new PublicKey("CgJnDJHjhkMgrkaky3Dp9dD89NzXRMP287bqmgCPMC8q");

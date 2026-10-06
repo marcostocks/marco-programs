@@ -671,7 +671,7 @@ const liqVal=p=>p.side==='long'?(p.openNotional-p.margin)/(p.base*(1-MKT.mmr)):(
    program rather than simulated: the reserves ARE the vAMM, the position IS the
    wallet's Position account, and every open and close is a transaction the
    wallet signs. Without the bundle (opened off disk) the page runs the simulation. */
-const CHAIN_SRC='../../marco-chain.js';
+const CHAIN_SRC='../../platform/marco-chain.js';
 const EXPLORER=(kind,id)=>'https://explorer.solana.com/'+kind+'/'+id+'?cluster=devnet';
 let LIVE=false, CH=null, LAST_TX=null;
 (function borrowShellWallet(){

@@ -15,8 +15,8 @@ const vaultCost=p=>Math.max(0,(p.sub||0)-(p.fee||0));
 const gtdRoom=v=>Math.max(0,v.vaultSize-v.raisedUsd);
 
 const EMBEDS={
-  preipo:{src:'apps/preipo/index.html',title:'Marco pre-IPO vaults'},
-  futures:{src:'apps/futures/index.html',title:'Marco valuation futures'},
+  preipo:{src:'pre-ipo/web/index.html',title:'Marco pre-IPO vaults'},
+  futures:{src:'valuation-futures/web/index.html',title:'Marco valuation futures'},
 };
 const EMBED_PAGES=Object.keys(EMBEDS);
 const embedApi={};     // page → the API its frame registered

@@ -1,6 +1,6 @@
 // minimal static server — rooted at the repo, so it never depends on process cwd
 const http = require('http'), https = require('https'), fs = require('fs'), path = require('path');
-const ROOT = path.resolve(__dirname, '..');
+const ROOT = path.resolve(__dirname, '..', '..');   // the repo root, where index.html is
 const TYPES = {'.html':'text/html; charset=utf-8','.js':'text/javascript','.css':'text/css',
   '.json':'application/json','.png':'image/png','.jpg':'image/jpeg','.svg':'image/svg+xml',
   '.woff2':'font/woff2','.pdf':'application/pdf'};

@@ -1835,7 +1835,7 @@ if(SHELL){
     if(!(k in window))try{Object.defineProperty(window,k,{configurable:true,get:()=>window.parent[k]})}catch{}
 }
 
-const CHAIN_SRC='../../marco-chain.js';   // beside this page, or the platform's shared copy — set by the build
+const CHAIN_SRC='../../platform/marco-chain.js';   // beside this page, or the platform's shared copy — set by the build
 
 let chainPromise=null;
 
