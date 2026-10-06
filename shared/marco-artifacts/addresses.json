@@ -1,0 +1,26 @@
+{
+  "cluster": "devnet",
+  "rpcUrl": "https://devnet.helius-rpc.com/?api-key=33a6cf62-a5fd-4573-b587-5673f098cca2",
+  "rpcUrlFallback": "https://api.devnet.solana.com",
+  "generatedBy": "orchestrator/scripts/setup-devnet.ts",
+  "programs": {
+    "marcoSpot": "44PTF8po9JW5KK5VVH295XRFfNm1x9KuwcAVsvYGgn9e",
+    "marcoVault": "CgJnDJHjhkMgrkaky3Dp9dD89NzXRMP287bqmgCPMC8q"
+  },
+  "usdc": {
+    "mint": "C7e4CPxXm6u5W1hahkPR1TmHfMdjtVwKxhurYoMFG9ef",
+    "decimals": 6
+  },
+  "wallets": {
+    "admin": "DAVKK3RoykYciooErx8yiRTPvPFdWb68ru8dn9QXqUNm",
+    "operator": "DAVKK3RoykYciooErx8yiRTPvPFdWb68ru8dn9QXqUNm",
+    "treasury": "DAVKK3RoykYciooErx8yiRTPvPFdWb68ru8dn9QXqUNm",
+    "broker": "DAVKK3RoykYciooErx8yiRTPvPFdWb68ru8dn9QXqUNm",
+    "demoTrader": "DAVKK3RoykYciooErx8yiRTPvPFdWb68ru8dn9QXqUNm"
+  },
+  "tokenAccounts": {
+    "brokerUsdc": "BJsX7ogUwTkMFAAUEXHQGwL517QYbcwX1PAf6dtTtEJg",
+    "treasuryUsdc": "BJsX7ogUwTkMFAAUEXHQGwL517QYbcwX1PAf6dtTtEJg",
+    "demoTraderUsdc": "BJsX7ogUwTkMFAAUEXHQGwL517QYbcwX1PAf6dtTtEJg"
+  }
+}

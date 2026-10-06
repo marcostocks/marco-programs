@@ -1,0 +1,502 @@
+<script>
+/* ════════ demo director — dormant unless the page is opened with ?demo=1 ════════
+   A scripted, self-playing product tour: the markets board and how it is
+   configured, the discover table, the standard and advanced trade views, a
+   pre-IPO offering read live off devnet, and a levered valuation-futures trade.
+   It drives the real UI through window.__marco and real click events (reaching
+   into the Pre-IPO and Futures frames), so what the video shows is the product,
+   not a mock — the order and the futures position genuinely execute. Nothing here runs, and nothing
+   is injected into the DOM, on a normal page load.
+
+   ?demo=1            play the tour
+   ?demo=1&caps=0     play it with the on-screen captions suppressed
+   ?demo=1&cursor=0   play it without the synthetic cursor
+   ?demo=1&zoom=1.10  raise the app's --z UI scale, so the interface still
+                      reads when the video is watched small
+
+   window.__demo.marks holds { t, label } for every beat once the tour has run,
+   which is what the voiceover timings in demo/VOICEOVER.md are cut against. */
+(function(){
+'use strict';
+const Q=new URLSearchParams(location.search);
+if(Q.get('demo')!=='1')return;
+const CAPS=Q.get('caps')!=='0', CURSOR=Q.get('cursor')!=='0';
+const ZOOM=parseFloat(Q.get('zoom'));
+if(ZOOM>0)document.documentElement.style.setProperty('--z',ZOOM);
+
+/* ── overlay chrome ── */
+const css=`
+.dmo-layer{position:fixed;inset:0;z-index:900;pointer-events:none;font-family:var(--sans)}
+.dmo-vig{position:absolute;inset:0;opacity:0;transition:opacity 600ms ease;
+  background:radial-gradient(120% 90% at 50% 45%,transparent 55%,rgba(0,0,0,.42) 100%)}
+.dmo-vig.on{opacity:1}
+
+.dmo-cur{position:absolute;left:0;top:0;width:22px;height:22px;margin:-11px 0 0 -11px;
+  border-radius:50%;opacity:0;transition:opacity 320ms ease;
+  background:radial-gradient(circle at 50% 50%,rgba(255,255,255,.95) 0 22%,rgba(255,255,255,.30) 23% 46%,transparent 47%);
+  box-shadow:0 0 0 1px rgba(255,255,255,.35),0 6px 22px rgba(0,0,0,.55)}
+.dmo-cur.on{opacity:1}
+.dmo-ring{position:absolute;left:0;top:0;width:22px;height:22px;margin:-11px 0 0 -11px;
+  border-radius:50%;border:1.5px solid rgba(255,255,255,.9);opacity:0}
+.dmo-ring.go{animation:dmoRing 520ms cubic-bezier(.22,.9,.3,1)}
+@keyframes dmoRing{
+  0%{opacity:.95;transform:scale(.55)}
+  100%{opacity:0;transform:scale(3.1)}}
+
+.dmo-cap{position:absolute;left:0;right:0;bottom:0;padding:130px 0 56px;
+  display:flex;flex-direction:column;align-items:center;gap:10px;
+  background:linear-gradient(to top,rgba(8,8,10,.92) 0%,rgba(8,8,10,.62) 38%,transparent 100%);
+  opacity:0;transition:opacity 420ms ease,padding-bottom 360ms cubic-bezier(.22,.9,.3,1)}
+.dmo-cap.on{opacity:1}
+/* lifted clear of the app's toast (bottom:28px) and of the positions table
+   under it, which is the thing that beat is asking you to look at */
+.dmo-cap.hi{padding-bottom:250px;
+  background:linear-gradient(to top,transparent 0%,rgba(8,8,10,.55) 14%,
+    rgba(8,8,10,.88) 24%,rgba(8,8,10,.55) 52%,transparent 100%)}
+
+.dmo-capT{font-size:34px;font-weight:600;letter-spacing:-.02em;color:#F5F5F7;
+  text-align:center;max-width:60vw;line-height:1.15;
+  transform:translateY(10px);transition:transform 420ms cubic-bezier(.22,.9,.3,1)}
+.dmo-cap.on .dmo-capT{transform:none}
+.dmo-capS{font-size:17px;color:var(--ink-2);text-align:center;max-width:52vw;
+  transform:translateY(10px);transition:transform 460ms cubic-bezier(.22,.9,.3,1) 40ms}
+.dmo-cap.on .dmo-capS{transform:none}
+
+/* No backdrop-filter here on purpose: it forces a compositing layer that comes
+   back black in headless capture, which is exactly where this gets recorded. */
+.dmo-card{position:absolute;inset:0;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;gap:18px;
+  background:linear-gradient(180deg,#0E0F12 0%,#08080A 100%);
+  opacity:0;transition:opacity 700ms ease}
+.dmo-card.on{opacity:1}
+.dmo-mark{width:78px;height:78px;border-radius:22px;display:grid;place-items:center;
+  background:#F5F5F7;color:#08080A;font-size:42px;font-weight:700;line-height:1;
+  margin-bottom:8px;transform:scale(.9);transition:transform 800ms cubic-bezier(.22,.9,.3,1)}
+.dmo-card.on .dmo-mark{transform:none}
+.dmo-cardT{font-size:62px;font-weight:700;letter-spacing:-.035em;color:#F5F5F7;line-height:1;
+  opacity:0;transform:translateY(14px);transition:all 760ms cubic-bezier(.22,.9,.3,1) 90ms}
+.dmo-cardS{font-size:24px;color:var(--ink-2);letter-spacing:-.01em;text-align:center;max-width:56vw;
+  line-height:1.35;
+  opacity:0;transform:translateY(14px);transition:all 760ms cubic-bezier(.22,.9,.3,1) 190ms}
+.dmo-cardF{position:absolute;bottom:56px;font-size:13px;color:var(--mute);
+  text-align:center;max-width:52vw;line-height:1.5;
+  opacity:0;transition:opacity 700ms ease 420ms}
+.dmo-card.on .dmo-cardT,.dmo-card.on .dmo-cardS{opacity:1;transform:none}
+.dmo-card.on .dmo-cardF{opacity:1}`;
+
+const st=document.createElement('style');st.textContent=css;document.head.appendChild(st);
+
+const L=document.createElement('div');L.className='dmo-layer';
+L.innerHTML=`<div class="dmo-vig" id="dmoVig"></div>
+<div class="dmo-cap" id="dmoCap"><div class="dmo-capT" id="dmoCapT"></div>
+  <div class="dmo-capS" id="dmoCapS"></div></div>
+<div class="dmo-ring" id="dmoRing"></div>
+<div class="dmo-cur" id="dmoCur"></div>
+<div class="dmo-card" id="dmoCard"><div class="dmo-mark">M</div>
+  <div class="dmo-cardT" id="dmoCardT"></div>
+  <div class="dmo-cardS" id="dmoCardS"></div>
+  <div class="dmo-cardF" id="dmoCardF"></div></div>`;
+document.body.appendChild(L);
+
+const D=id=>document.getElementById(id);
+const cur=D('dmoCur'),ring=D('dmoRing'),cap=D('dmoCap'),card=D('dmoCard');
+
+/* ── timing primitives ── */
+const T0=performance.now();
+const marks=[];
+const wait=ms=>new Promise(r=>setTimeout(r,ms));
+const ease=t=>t<.5?4*t*t*t:1-Math.pow(-2*t+2,3)/2;   /* easeInOutCubic */
+function mark(label){
+  const t=Math.round(performance.now()-T0);
+  marks.push({t,label});
+  console.log('[demo] '+String(t/1000).padStart(6,' ')+'s  '+label);
+}
+function tween(ms,step){
+  return new Promise(done=>{
+    const s=performance.now();
+    (function frame(now){
+      const p=Math.min(1,(now-s)/ms);
+      step(ease(p));
+      p<1?requestAnimationFrame(frame):done();
+    })(s);
+  });
+}
+
+/* ── cursor ── */
+let cx=innerWidth*.5, cy=innerHeight*.62;
+function place(x,y){cx=x;cy=y;
+  cur.style.transform=ring.style.transform=`translate(${x}px,${y}px)`}
+place(cx,cy);
+async function moveTo(x,y,ms){
+  if(!CURSOR)  {cx=x;cy=y;return}
+  cur.classList.add('on');
+  const x0=cx,y0=cy;
+  await tween(ms,p=>place(x0+(x-x0)*p, y0+(y-y0)*p));
+}
+function ripple(){
+  if(!CURSOR)return;
+  ring.classList.remove('go');void ring.offsetWidth;ring.classList.add('go');
+}
+const box=el=>el.getBoundingClientRect();
+const mid=el=>{const r=box(el);return [r.left+r.width/2, r.top+r.height/2]};
+
+/* Move onto a control the way a hand would, then actually click it. The app is
+   wired with .onclick handlers, so a plain el.click() is a real interaction.
+   Anything off screen is scrolled to first, so the cursor is never seen
+   clicking somewhere the viewer cannot see. */
+async function tap(el,{travel=620,settle=340}={}){
+  if(!el)return;
+  await ensureVisible(el);
+  const [x,y]=mid(el);
+  await moveTo(x,y,travel);
+  await wait(120);ripple();el.click();
+  await wait(settle);
+}
+async function ensureVisible(el,ms=800){
+  const r=box(el);
+  if(r.bottom>90&&r.top<innerHeight-90)return;   /* already on screen */
+  await scrollTween(scrollY+r.top-innerHeight*0.4,ms);
+}
+
+/* ── captions ── */
+/* hi: sit the caption above the app's toast, for beats where both are on screen */
+async function say(t,s,{lead=260,hi=false}={}){
+  if(!CAPS)return;
+  if(cap.classList.contains('on')){cap.classList.remove('on');await wait(360)}
+  D('dmoCapT').textContent=t;
+  D('dmoCapS').textContent=s||'';
+  D('dmoCapS').style.display=s?'':'none';
+  cap.classList.toggle('hi',hi);
+  await wait(60);cap.classList.add('on');await wait(lead);
+}
+async function sayOff(){if(!CAPS)return;cap.classList.remove('on');await wait(380)}
+
+async function titleCard(t,s,f,{hold=2600,fade=820}={}){
+  D('dmoCardT').textContent=t;
+  D('dmoCardS').textContent=s||'';
+  D('dmoCardF').textContent=f||'';
+  card.classList.add('on');
+  await wait(hold);
+  card.classList.remove('on');
+  await wait(fade);
+}
+
+/* ── scrolling ── */
+function scrollTween(to,ms){
+  const from=scrollY, max=document.body.scrollHeight-innerHeight;
+  const y=Math.max(0,Math.min(to,max));
+  return tween(ms,p=>scrollTo(0,from+(y-from)*p));
+}
+async function scrollToEl(el,ms=1400,off=140){
+  if(!el)return;
+  await scrollTween(scrollY+box(el).top-off,ms);
+}
+
+/* ── app handles ── */
+const M=()=>window.__marco;
+const $=id=>document.getElementById(id);
+const nav=page=>document.querySelector(`.rbtn[data-nav="${page}"]`);
+
+/* Type into a real input and fire the handler the app listens for. The clear
+   fires an event of its own — typeIn(el,'') is how the tour empties a field,
+   and without it the app never learns the field went blank. */
+async function typeIn(el,text,per=68){
+  if(!el)return;
+  el.focus();el.value='';
+  el.dispatchEvent(new Event('input',{bubbles:true}));
+  for(const ch of text){
+    el.value+=ch;
+    el.dispatchEvent(new Event('input',{bubbles:true}));
+    await wait(per);
+  }
+}
+
+/* ── embedded products ── Pre-IPO and Futures are apps in frames, so these
+   reach into the frame: its elements, its scroll, and the cursor's position
+   translated into the shell's coordinates. */
+const frameOf=page=>document.querySelector(`#emb-${page} iframe`);
+const fq=(page,sel)=>frameOf(page)?.contentDocument.querySelector(sel);
+async function frameReady(page,ms=10000){
+  const t=performance.now();
+  while(!M().embedApi[page]&&performance.now()-t<ms)await wait(100);
+  await wait(700);
+}
+function fscrollTween(page,to,ms){
+  const w=frameOf(page).contentWindow;
+  const from=w.scrollY, max=w.document.body.scrollHeight-w.innerHeight;
+  const y=Math.max(0,Math.min(to,max));
+  return tween(ms,p=>w.scrollTo(0,from+(y-from)*p));
+}
+async function ftap(page,el,{travel=620,settle=340}={}){
+  if(!el)return;
+  const w=frameOf(page).contentWindow;
+  let r=el.getBoundingClientRect();
+  if(r.bottom<90||r.top>w.innerHeight-90){
+    await fscrollTween(page,w.scrollY+r.top-w.innerHeight*0.4,800);
+    r=el.getBoundingClientRect();
+  }
+  const f=box(frameOf(page));
+  await moveTo(f.left+r.left+r.width/2,f.top+r.top+r.height/2,travel);
+  await wait(120);ripple();el.click();
+  await wait(settle);
+}
+async function ftype(page,el,text,per=68){
+  if(!el)return;
+  el.focus();el.value='';
+  for(const ch of text){el.value+=ch;el.dispatchEvent(new Event('input',{bubbles:true}));await wait(per)}
+}
+
+/* Select an offering tab in the Pre-IPO app, bring it up, and caption it. */
+async function vaultTab(key,t,s,hold=2200,hi=false){
+  await ftap('preipo',fq('preipo',`#vnav [data-s="${key}"]`),{travel:700,settle:600});
+  const sec=fq('preipo','#s-'+key),w=frameOf('preipo').contentWindow;
+  if(sec)await fscrollTween('preipo',w.scrollY+sec.getBoundingClientRect().top-140,1000);
+  await say(t,s,{hi});
+  await wait(hold);
+  await sayOff();
+}
+
+/* Walk the buy-size slider up to a percentage — the app derives the amount,
+   the fill price and the fee from it, so every number on screen stays real. */
+async function slide(pct,ms=1100){
+  const r=$('rng');if(!r)return;
+  const from=+r.value||0;
+  const rr=box(r), y=rr.top+rr.height/2;
+  const at=v=>rr.left+12+(rr.width-24)*(v/100);
+  await moveTo(at(from),y,520);
+  await tween(ms,p=>{
+    const v=from+(pct-from)*p;
+    r.value=v;r.dispatchEvent(new Event('input',{bubbles:true}));
+    place(at(v),y);
+  });
+  await wait(260);
+}
+
+/* ════════ the tour ════════ */
+async function run(){
+  /* Give the first price tick and the opening chart draw time to land, so the
+     video never opens on a half-painted screen. */
+  await wait(900);
+  const m=M();
+  if(!m){console.warn('[demo] app never booted');return}
+
+  m.go('markets');scrollTo(0,0);
+  D('dmoVig').classList.add('on');
+
+  /* ── 1 · cold open ── */
+  mark('cold open');
+  await titleCard('Marco','Cross the Seas',
+    'The stablecoin-native gateway to Asian stocks & pre-IPO',{hold:3200});
+
+  /* ── 2 · markets ── */
+  mark('markets');
+  await say('Trade Asian equities and pre-IPO','In USDC and USDT, on live exchange feeds');
+  await wait(2800);
+  await sayOff();
+
+  await say('Global markets, frontier tech, leading AI','The tape, the chart and the pulse all tick live');
+  await scrollTween(520,2200);
+  await wait(2200);
+  await sayOff();
+  await scrollTween(0,900);         /* back to the top for the layout menu */
+
+  /* ── 3 · layouts and edit mode ── (before Discover: show the board, then how
+     it is put together, then how you find markets on it) ── */
+  mark('layouts');
+  await say('Build your markets dashboard','Modular capsules — charts, feeds, sectors, portfolio');
+  await tap($('layoutBtn'),{travel:900,settle:1500});
+  await tap(document.querySelector('#ltmGrid .ltCard[data-ly="compact"]'),{travel:640,settle:1800});
+  await sayOff();
+  await say('Start from a template','Compact — the pulse, the chart, the book');
+  await wait(2200);
+  await sayOff();
+
+  await tap($('layoutBtn'),{travel:760,settle:1200});
+  await tap(document.querySelector('#ltmGrid .ltCard[data-ly="trading"]'),{travel:600,settle:1700});
+  await say('Or one built for trading','Price action up front');
+  await wait(2400);
+  await sayOff();
+
+  await tap($('editBtn'),{travel:820,settle:1400});
+  await say('Or craft your own','Drag capsules anywhere on the board');
+  await wait(2600);
+  await sayOff();
+  await tap(document.querySelector('#wPalette #wDone'),{travel:700,settle:900});
+  await tap($('layoutBtn'),{travel:700,settle:1100});
+  await tap(document.querySelector('#ltmGrid .ltCard[data-ly="overview"]'),{travel:600,settle:1400});
+  await scrollTween(0,900);
+
+  /* ── 4 · discover: filter and search ── */
+  mark('discover');
+  const disc=document.querySelector('[data-wg="table"]');
+  await scrollToEl(disc,1700,90);
+  await say('The whole book in one place','Filter it by sector');
+  await tap(document.querySelector('#catPills [data-c="ai"]'),{travel:700,settle:1500});
+  await wait(1300);
+  await tap(document.querySelector('#catPills [data-c="all"]'),{travel:520,settle:900});
+  await sayOff();
+
+  /* "mi" narrows to MiniMax, SMIC and Xiaomi — the search matches name and
+     symbol only, so a sector word like "semi" would come back empty. */
+  await say('Or search by name or ticker');
+  await typeIn($('mktSearch'),'mi',150);
+  await wait(2400);
+  await typeIn($('mktSearch'),'');
+  await wait(700);
+  await sayOff();
+
+  /* ── 5 · trade ── */
+  mark('trade');
+  await tap(nav('trade'),{travel:820,settle:900});
+  scrollTo(0,0);
+  await say('Trade with your preferred stablecoins');
+  await wait(1500);
+  await sayOff();
+
+  /* Open the picker and hold on it — the list of markets with live prices is
+     the point of the shot — then take Zhipu AI. */
+  await tap($('pickBtn'),{travel:640,settle:1700});
+  await say('An intuitive picker','Real-time pricing and 24-hour moves');
+  await wait(1700);
+  await tap(document.querySelector('#pickList [data-p="zhipu"]'),{travel:820,settle:1200});
+  await sayOff();
+
+  /* chart timeframes */
+  await say('Charts from intraday volatility to five-year trends');
+  await tap(document.querySelector('#tfs [data-tf="1M"]'),{travel:820,settle:1500});
+  await tap(document.querySelector('#tfs [data-tf="1Y"]'),{travel:560,settle:1600});
+  await tap(document.querySelector('#tfs [data-tf="1D"]'),{travel:560,settle:1300});
+  await sayOff();
+
+  /* the ticket, in detail */
+  mark('ticket');
+  await say('From size to execution in a click','Every cost quoted before you commit');
+  await slide(25,1400);
+  await wait(2600);          /* hold on the filled-out ticket: fill, spread, fee, total */
+  await sayOff();
+
+  await tap($('cta'),{travel:520,settle:1100});
+  mark('order filled');
+  await say('Backed 1:1 by a licensed brokerage and custodian','Position, cost basis and P&L update immediately',{hi:true});
+  await wait(2600);
+  await sayOff();
+
+  /* the rest of the standard view */
+  await say('And the live order book below','Depth either side of the mid');
+  await scrollTween(720,2100);
+  await wait(2800);
+  await sayOff();
+  await scrollTween(0,1000);
+
+  /* ── 6 · advanced ── */
+  mark('advanced');
+  await tap(document.querySelector('#stdHero .modeBtn[data-mode="adv"]'),{travel:760,settle:1700});
+  await say('A full-suite pro terminal, one click away','Live order books, depth, multi-timeframe charts');
+  await wait(2800);
+  await sayOff();
+
+  await say('Any interval, minutes to months',null,{hi:true});
+  await tap($('intBtn'),{travel:820,settle:1400});
+  await tap(document.querySelector('#intMenu [data-int="15"]'),{travel:560,settle:1600});
+  await sayOff();
+
+  await say('Holdings','Marked live, in real time',{hi:true});
+  await tap(document.querySelector('.utab[data-tab="holdings"]'),{travel:820,settle:1400});
+  await wait(2200);
+  await sayOff();
+
+  await say('Order history','Every fill, the moment it happens',{hi:true});
+  await tap(document.querySelector('.utab[data-tab="history"]'),{travel:600,settle:1400});
+  await wait(2800);
+  await sayOff();
+
+  await say('A market-wide screener for your next move',null,{hi:true});
+  await tap(document.querySelector('.utab[data-tab="screener"]'),{travel:600,settle:1500});
+  await wait(2800);
+  await sayOff();
+
+  m.setMode('std');
+  await wait(800);
+
+  /* ── 7 · pre-IPO ── the part the whole platform is really for. It is its
+     own app, framed by the platform, reading live vault state off devnet. ── */
+  mark('pre-ipo');
+  await tap(nav('preipo'),{travel:860,settle:600});
+  await frameReady('preipo');
+  await say('Access the unreachable','Pre-IPO vaults — private equity before it lists');
+  await wait(2700);
+  await sayOff();
+
+  await say('Every offering, read from chain','Valuation, vault cap, subscriptions and the deadline the program enforces');
+  await ftap('preipo',fq('preipo','#next'),{travel:760,settle:1500});
+  await ftap('preipo',fq('preipo','#prev'),{travel:500,settle:1300});
+  await sayOff();
+
+  mark('vault detail');
+  await ftap('preipo',fq('preipo','#track [data-v="moon"]'),{travel:760,settle:1500});
+  await say('A dedicated hub per vault','Valuation, capacity, subscription, closing countdown');
+  await wait(2800);
+  await sayOff();
+
+  /* Left to right, in the order the tabs actually sit on the page — jumping
+     around reads as a mistake even when every stop is worth showing. */
+  await vaultTab('how','Lifecycle','Subscription, allocation, listing, redemption');
+  /* lifted so the caption does not sit on top of the addresses it cites */
+  await vaultTab('terms','The full terms','Read from the vault account on chain, not restated',2600,true);
+  await vaultTab('numbers','Financials','Revenue and comparables, with the sources stated');
+  await vaultTab('risk','Payoff and risk factors','Stated plainly, before you commit');
+  await vaultTab('activity','Activity','Every subscription, linked to its transaction',1900);
+
+  /* Quote a subscription without sending it: in the tour there is no wallet,
+     and the vault is a real one — the quote is the program's own fee maths. */
+  mark('subscribe');
+  await fscrollTween('preipo',0,1100);
+  await say('Seamless USDC subscriptions','Your fee and claim tokens, quoted before you sign');
+  await ftype('preipo',fq('preipo','#bAmt'),'5000',95);
+  await wait(2600);
+  await sayOff();
+
+  /* ── 7b · valuation futures ── the same company, long or short, levered ── */
+  mark('futures');
+  await tap(nav('futures'),{travel:760,settle:600});
+  await frameReady('futures');
+  await say('Trade the valuation itself','Long or short Moonshot AI’s valuation, settled at the IPO');
+  await wait(2600);
+  await sayOff();
+
+  await say('Up to 10× on isolated margin','The mark is an 8-hour EMA of the book, anchored to verified rounds');
+  await ftype('futures',fq('futures','#amt'),'2500',90);
+  const lev=fq('futures','#levRng');
+  if(lev){
+    const w=frameOf('futures').contentWindow;
+    await tween(1100,p=>{lev.value=3+2*p;lev.dispatchEvent(new w.Event('input',{bubbles:true}))});
+  }
+  await wait(1200);
+  await ftap('futures',fq('futures','#cta'),{travel:700,settle:1300});
+  mark('futures position');
+  await sayOff();
+  await say('Position open','Size, margin, liquidation price and live P&L',{hi:true});
+  await ftap('futures',fq('futures','#posWrap'),{travel:600,settle:300});
+  await wait(2800);
+  await sayOff();
+
+  /* ── 8 · close ── the mark is the way back out of a vault ── */
+  mark('close');
+  await tap($('homeBtn'),{travel:900,settle:1700});
+  await titleCard('Marco','Your gateway to the east',
+    'Trading equities, crypto assets and pre-IPO instruments involves substantial risk of loss. ' +
+    'Platform features and asset listings shown are for demonstration purposes only and do not ' +
+    'constitute financial advice or an offer to sell.',
+    {hold:4600,fade:900});
+
+  mark('end');
+  document.documentElement.setAttribute('data-demo-done','1');
+  console.log('[demo] finished in '+((performance.now()-T0)/1000).toFixed(1)+'s');
+}
+
+window.__demo={run,marks,say,tap,titleCard,scrollTween};
+addEventListener('load',()=>setTimeout(run,400));
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,418 @@
+<body>
+<div class="app" id="app" data-wl="off">
+  <nav class="rail" aria-label="Primary">
+    <button class="logo" id="homeBtn" data-tip="Markets" aria-label="Go to markets">M</button>
+    <button class="rbtn" data-nav="markets" data-tip="Markets" aria-label="Markets"><svg viewBox="0 0 24 24"><path d="M3 3v18h18"/><path d="M7 15l4-5 3 3 5-7"/></svg></button>
+    <button class="rbtn" data-nav="trade" data-tip="Trade" aria-label="Trade"><svg viewBox="0 0 24 24"><path d="M4 17l5-5 4 3 7-8"/><path d="M20 7v5h-5"/></svg></button>
+    <button class="rbtn" data-nav="portfolio" data-tip="Portfolio" aria-label="Portfolio"><svg viewBox="0 0 24 24"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M8 7V5a2 2 0 012-2h4a2 2 0 012 2v2"/></svg></button>
+    <button class="rbtn" data-nav="preipo" data-tip="Pre-IPO" aria-label="Pre-IPO vaults"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="12" cy="12" r="3.4"/></svg></button>
+    <button class="rbtn" data-nav="futures" data-tip="Valuation Futures" aria-label="Valuation futures"><svg viewBox="0 0 24 24"><path d="M3 20h18"/><path d="M6 16l4-4 3 2 5-6"/><path d="M15 8h3v3"/><path d="M6 5v3M4.5 6.5h3"/></svg></button>
+    <button class="rbtn" data-nav="agents" data-tip="Agents" aria-label="Research agents"><svg viewBox="0 0 24 24"><rect x="4" y="8" width="16" height="11" rx="3"/><path d="M12 8V4.5M9.5 13h.01M14.5 13h.01M2 12v3M22 12v3"/><circle cx="12" cy="3.4" r="1.4"/></svg></button>
+    <div class="rdiv"></div>
+    <button class="rbtn" id="wlBtn" data-tip="Watchlist" aria-label="Toggle watchlist" aria-pressed="false"><svg viewBox="0 0 24 24"><path d="M12 3l2.6 5.6 6 .8-4.4 4.2 1.1 6-5.3-3-5.3 3 1.1-6L3.4 9.4l6-.8z"/></svg></button>
+    <div class="rsp"></div>
+    <button class="rbtn" id="themeBtn" data-tip="Appearance" aria-label="Toggle appearance"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4.2"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg></button>
+    <button class="rbtn" id="walletBtn" data-tip="Connect wallet" aria-label="Connect wallet">
+      <svg viewBox="0 0 24 24"><path d="M3 8.5A2.5 2.5 0 015.5 6H17"/><rect x="3" y="6" width="18" height="13" rx="2.6"/><path d="M21 11h-4a2 2 0 000 4h4"/></svg><span class="wdot"></span></button>
+    <div class="avatar" id="avatar" data-tip="Account" role="button" tabindex="0" aria-label="Account">TT</div>
+  </nav>
+
+  <aside class="wlp" aria-label="Watchlist"><div class="wlin">
+    <div class="wlh"><span class="ct" style="font-size:13px">Watchlist</span><span class="mini num" id="wlCount">—</span></div>
+    <div id="wlList"></div>
+  </div></aside>
+
+  <main>
+    <div class="tape" id="tape" aria-label="Ticker"><div class="tapeRun capsule" id="tapeRun"></div></div>
+
+    <!-- ═══ MARKETS ═══ -->
+    <section class="page" id="p-markets"><div class="pad">
+      <div style="display:flex;align-items:flex-end;justify-content:space-between;gap:24px;flex-wrap:wrap;margin-bottom:28px">
+        <h1 class="h1">Markets</h1>
+        <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap">
+          <button class="btn layoutBtn" id="layoutBtn" aria-haspopup="dialog">
+            <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>
+            <span class="lbN">Overview</span></button>
+          <button class="btn editBtn" id="editBtn">
+            <svg viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>
+            <span>Edit</span></button>
+        </div>
+      </div>
+      <div class="wPalette" id="wPalette"></div>
+      <div class="bento">
+        <div class="card fill span5 pulseCard" data-wg="pulse">
+          <div class="ch"><span class="ct">Market Pulse</span>
+            <span class="cs live"><i class="ldot"></i>Live</span></div>
+          <div class="pulseBody" id="pulse"></div>
+        </div>
+        <div class="card span7" data-wg="index">
+          <div class="ch"><span class="ct">Sector Composites</span>
+            <span class="cs" id="idxSub">Rebased to 100 at the 24h open</span></div>
+          <div class="istrip" id="idxStrip"></div>
+        </div>
+        <div class="card span8" id="heroChartCard" data-wg="chart"></div>
+        <div class="card span4" data-wg="summary">
+          <div class="ch"><span class="ct">Summary</span><span class="cs" id="sumSym">—</span></div>
+          <div id="summary" style="padding:2px 24px 18px"></div>
+        </div>
+        <div class="card span4" id="pfSnapCard" data-wg="portfolio">
+          <div class="ch"><span class="ct">Your Portfolio</span>
+            <a class="lnk" href="#/portfolio">Open</a></div>
+          <div class="snapBody" id="pfSnap"></div>
+        </div>
+        <div class="card span4" data-wg="social">
+          <div class="ch"><span class="ct">Social</span>
+            <span class="cs live"><i class="ldot"></i>Live</span></div>
+          <div id="feedRail" class="feedRail" data-take="3" style="padding:6px 20px 18px"></div>
+        </div>
+        <div class="card span4" data-wg="active">
+          <div class="ch"><span class="ct">Most Active</span><span class="cs">24h volume</span></div>
+          <div id="active" style="padding:8px 24px 20px"></div>
+        </div>
+        <div class="card span4" data-wg="gainers">
+          <div class="ch"><span class="ct">Top Gainers</span></div>
+          <div id="gainers" style="padding:8px 24px 20px"></div>
+        </div>
+        <div class="card span4" data-wg="losers">
+          <div class="ch"><span class="ct">Top Losers</span></div>
+          <div id="losers" style="padding:8px 24px 20px"></div>
+        </div>
+        <div class="card span4" data-wg="sectors">
+          <div class="ch"><span class="ct">Sector Strength</span><span class="cs">Avg 24h change</span></div>
+          <div id="sectorBars" style="padding:6px 24px 20px"></div>
+        </div>
+        <div class="card span4" data-wg="hist">
+          <div class="ch"><span class="ct">Return Distribution</span>
+            <span class="cs">24h · all markets</span></div>
+          <div class="histBody" id="histBody"></div>
+        </div>
+        <div class="card span4" data-wg="weight">
+          <div class="ch"><span class="ct">Market Weight</span><span class="cs">By market cap</span></div>
+          <div class="cwrap grow" style="padding:4px 16px 14px"><canvas id="weightCh"></canvas></div>
+        </div>
+        <div class="card span4" data-wg="volshare">
+          <div class="ch"><span class="ct">Volume Share</span><span class="cs">24h traded</span></div>
+          <div class="cwrap grow" style="padding:4px 16px 14px"><canvas id="volShareCh"></canvas></div>
+        </div>
+        <div class="card span4" data-wg="radar">
+          <div class="ch"><span class="ct">Market Share</span>
+            <span class="cs" id="secRadarSub">By capitalisation</span></div>
+          <div class="secBody2">
+            <div class="secRadarBox"><canvas id="secRadarCh"></canvas></div>
+            <div class="chLeg secLegV" id="secRadarLeg"></div>
+          </div>
+        </div>
+        <div class="card span4" data-wg="retsince">
+          <div class="ch"><span class="ct">Total Equity</span><span class="cs">Illustrative</span></div>
+          <div class="retBody" id="retSince"></div>
+        </div>
+        <div class="card span4" data-wg="pipeline">
+          <div class="ch"><span class="ct">Pre-IPO Pipeline</span><a class="lnk" id="pipeAll" href="#/preipo">View all</a></div>
+          <div id="pipeline" style="padding:8px 24px 20px"></div>
+        </div>
+        <div class="span12" data-wg="table">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:18px">
+            <h2 class="h2">Discover</h2><div class="mini num" id="resCount">—</div>
+          </div>
+          <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:16px">
+            <div class="segc" id="catPills"></div>
+            <div class="search"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+              <input id="mktSearch" placeholder="Search markets" aria-label="Search markets"></div>
+          </div>
+          <div class="card"><div class="tscroll" style="margin-top:0"><table>
+            <caption class="vh">Listed markets with price, 24-hour change, volume and market capitalisation</caption>
+            <thead><tr id="mktHead"></tr></thead><tbody id="mktBody"></tbody></table></div></div>
+        </div>
+      </div>
+      <div class="foot">Marco — trade global equities with stablecoins. Settlement on Solana, custody by licensed Hong Kong brokers.
+        Trading carries substantial risk and you may lose your capital. Not financial advice.</div>
+    </div></section>
+
+    <!-- ═══ TRADE ═══ -->
+    <section class="page" id="p-trade">
+      <!-- standard -->
+      <div id="tradeStd" class="pad" style="padding-top:28px;padding-bottom:40px"><div class="bento">
+        <div class="card hero span8 lift" id="stdHero" role="link" tabindex="0"
+             aria-label="Open advanced view" title="Open advanced view">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:18px">
+            <button class="picker" id="pickBtn" aria-haspopup="listbox" aria-expanded="false">
+              <span class="mark" id="hMark">—</span>
+              <span style="text-align:left"><span class="h3" id="hName" style="display:block">—</span>
+                <span class="mini" id="hSym">—</span></span>
+              <svg class="pickCar" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg>
+            </button>
+            <button class="modeBtn" data-mode="adv" title="Advanced view"
+                    aria-label="Open advanced view">
+              <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/>
+                <path d="M15 4v16M15 12h6"/></svg><span>Advanced</span></button>
+          </div>
+          <div style="display:flex;align-items:flex-end;gap:34px;flex-wrap:wrap">
+            <div>
+              <div class="px num" id="px">—<small id="pxCcy">USDC</small></div>
+              <div style="display:flex;align-items:center;gap:10px;margin-top:10px">
+                <span class="pill" id="dPill">—</span><span class="num mini" id="dAbs">—</span>
+                <span class="mini">24h</span></div>
+            </div>
+            <div class="hstats" style="gap:30px;padding-bottom:4px">
+              <div class="hstat"><div class="hk">24h volume</div><div class="hv num" id="kVol">—</div></div>
+              <div class="hstat"><div class="hk">Market cap</div><div class="hv num" id="kCap">—</div></div>
+              <div class="hstat"><div class="hk">24h range</div><div class="hv num" id="kRange">—</div></div>
+            </div>
+          </div>
+          <div class="cwrap" style="height:290px;margin-top:20px"><canvas id="chart"></canvas><div class="cross num" id="cross"></div></div>
+          <div class="tfs" id="tfs"></div>
+        </div>
+
+        <div class="card span4" style="padding:24px">
+          <div class="seg"><button class="buy on" id="sBuy">Buy</button><button class="sell" id="sSell">Sell</button></div>
+          <div class="depbox">
+            <div class="depTop"><span class="depL">Amount</span><span class="depL num" id="avail">—</span></div>
+            <input id="amt" type="number" placeholder="0" min="0" class="num depAmt" aria-label="Amount">
+            <div class="depBot"><span class="depSub num" id="amtSub">—</span>
+              <span class="depUnit" id="amtCcy"></span></div>
+          </div>
+          <input class="rng" id="rng" type="range" min="0" max="100" value="0" aria-label="Percent of available">
+          <div class="scale num"><span>0</span><span>25</span><span>50</span><span>75</span><span>100%</span></div>
+          <button class="cta buy" id="cta" disabled>Buy</button>
+          <div class="sum" style="margin-top:16px">
+            <div class="row"><span>Fill price</span><b class="num" id="sFill">—</b></div>
+            <div class="row"><span>Spread <i>0.15%</i></span><b class="num" id="sSpread">—</b></div>
+            <div class="row"><span>Fee <i>0.25%</i></span><b class="num" id="sFee">—</b></div>
+            <div class="row tot"><span>Total</span><b class="num" id="sTotal">—</b></div></div>
+        </div>
+
+        <div class="card span12">
+          <div class="ch"><span class="ct">Positions</span><span class="cs num" id="tEq">—</span></div>
+          <div class="tscroll"><table><thead><tr>
+            <th scope="col">Market</th><th scope="col" class="r">Size</th><th scope="col" class="r">Avg</th>
+            <th scope="col" class="r">Mark</th><th scope="col" class="r">Value</th><th scope="col" class="r">P&amp;L</th>
+          </tr></thead><tbody id="tPos"></tbody></table></div>
+        </div>
+
+        <div class="card span4">
+          <div class="ch"><span class="ct">Order Book</span><span class="cs" id="bookCcy">—</span></div>
+          <div class="book"><div class="bh"><span>Price</span><span>Size</span><span>Total</span></div>
+            <div id="asks"></div>
+            <div class="mid"><b class="num" id="midPx">—</b><span class="num" id="midSpr">—</span></div>
+            <div id="bids"></div></div>
+        </div>
+
+        <div class="card span8" style="margin-bottom:8px">
+          <div class="ch big"><span class="ct">Market Details</span></div>
+          <div id="dAbout" style="padding:16px 24px 0"></div>
+          <div id="dNews" style="padding:0 24px 18px"></div>
+          <div class="g4" id="detailGrid"></div>
+        </div>
+
+      </div></div>
+
+      <!-- advanced -->
+      <div id="tradeAdv" style="display:none"><div class="tl">
+        <div class="tc">
+          <div class="tbar">
+            <button class="picker" id="pickBtn2" aria-haspopup="listbox" aria-expanded="false">
+              <span class="tsi" id="tsi">—</span>
+              <span style="text-align:left"><span class="tsym" id="tname">—</span>
+                <span class="mini" id="tsub">—</span></span>
+              <svg class="pickCar" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg>
+            </button>
+            <button class="tstar" id="tstar"></button>
+            <div class="hstats" id="hstats"></div>
+            <div style="flex:1"></div>
+            <div class="indwrap">
+              <button class="indbtn" id="intBtn" title="Chart interval" aria-haspopup="true" aria-expanded="false">
+                <span id="intLbl">1h</span>
+                <svg class="indcar" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg></button>
+              <div class="indmenu" id="intMenu" role="menu" style="min-width:132px"></div>
+            </div>
+            <button class="cbtn" id="obkBtn" title="Order book" aria-pressed="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round">
+                <path d="M4 6h9M4 10h6M4 14h11M4 18h7"/><path d="M18 4v16" opacity=".45"/></svg></button>
+            <button class="cbtn" id="ctype" title="Chart type"></button>
+            <button class="cbtn" id="cfull" title="Expand chart" aria-label="Expand chart">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"
+                   stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H3v5M16 3h5v5M8 21H3v-5M16 21h5v-5"/></svg></button>
+            <button class="modeBtn" data-mode="std" title="Standard view"
+                    aria-label="Back to standard view">
+              <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/>
+                <path d="M3 12h18"/></svg><span>Standard</span></button>
+          </div>
+          <div class="tvwrap" id="tvwrap">
+            <div id="tvchart"></div>
+            <div class="tvfall" id="tvfall">
+              <div class="mini" style="margin-bottom:10px">Illustrative price shape — anchored to the live last price</div>
+              <canvas id="fallChart"></canvas></div>
+          </div>
+          <div class="tsplit" id="tsplit" role="separator" aria-orientation="horizontal"
+               tabindex="0" aria-label="Resize chart height" title="Drag to resize · double-click to reset">
+            <span class="tgrip"></span>
+          </div>
+          <div class="utabs" style="padding:0 20px">
+            <button class="utab on" data-tab="orders">Pending orders</button>
+            <button class="utab" data-tab="holdings">Holdings</button>
+            <button class="utab" data-tab="history">Order history</button>
+            <button class="utab" data-tab="screener">Screener</button>
+          </div>
+          <div class="tpane" id="tpane"></div>
+        </div>
+        <div class="vsplit" id="vsplit" role="separator" aria-orientation="vertical"
+             tabindex="0" aria-label="Resize order book" title="Drag to resize · double-click to reset">
+          <span class="vgrip"></span>
+        </div>
+        <aside class="obk" id="obk"></aside>
+        <div class="vsplit rsplit" id="rsplit" role="separator" aria-orientation="vertical"
+             tabindex="0" aria-label="Resize side panel" title="Drag to resize · double-click to reset">
+          <span class="vgrip"></span>
+        </div>
+        <aside class="rail2" id="rail2"></aside>
+      </div></div>
+    </section>
+
+    <!-- ═══ PORTFOLIO ═══ -->
+    <section class="page" id="p-portfolio"><div class="pad">
+      <h1 class="h1" style="margin-bottom:28px">Portfolio</h1>
+      <div class="bento">
+        <div class="card fill span8 pfHero" style="padding:28px">
+          <div class="ct">Total Equity</div>
+          <div class="pfTop">
+            <div class="num pfEqV" id="pfEq">—</div>
+            <div class="pfDelta"><span class="num" id="pfChg">—</span>
+              <span class="num" id="pfChgPct">—</span></div>
+          </div>
+          <div class="cwrap pfHeroCh" style="margin-top:14px"><canvas id="pfChart"></canvas></div>
+          <div style="display:flex;gap:16px;flex-wrap:wrap;margin-top:10px">
+            <span class="mini"><span style="display:inline-block;width:14px;height:2px;background:var(--up);vertical-align:middle;margin-right:6px"></span>Equity</span>
+            <span class="mini"><span style="display:inline-block;width:14px;height:0;border-top:1px dashed var(--mute);vertical-align:middle;margin-right:6px"></span>Cost basis</span>
+          </div>
+        </div>
+        <div class="card span4" style="padding:28px">
+          <div class="ct" style="margin-bottom:14px">Breakdown</div>
+          <div class="row"><span>Cash</span><b class="num" id="pfCash">—</b></div>
+          <div class="row"><span>Spot positions</span><b class="num" id="pfSpot">—</b></div>
+          <div class="row"><span>Pre-IPO vaults</span><b class="num" id="pfVault">—</b></div>
+          <div class="row tot"><span>Unrealised P&amp;L</span><b class="num" id="pfPnl">—</b></div>
+          <div style="margin-top:16px"><div class="mini">Allocation</div>
+            <div class="cwrap" style="height:188px;margin-top:8px"><canvas id="pfMixChart"></canvas></div></div>
+        </div>
+        <div class="card span4">
+          <div class="ch"><span class="ct">Allocation By Position</span><span class="cs">Market value</span></div>
+          <div class="cwrap" style="height:190px;padding:10px 18px 16px"><canvas id="pfAllocChart"></canvas></div>
+        </div>
+        <div class="card span4">
+          <div class="ch"><span class="ct">Return Since Entry</span><span class="cs">Illustrative</span></div>
+          <div class="cwrap" style="height:190px;padding:10px 18px 16px"><canvas id="pfRetChart"></canvas></div>
+        </div>
+        <div class="card span4">
+          <div class="ch"><span class="ct">Unrealised P&amp;L By Position</span><span class="cs">Live marks</span></div>
+          <div class="cwrap" style="height:190px;padding:10px 18px 16px"><canvas id="pfPnlChart"></canvas></div>
+        </div>
+        <div class="card span12">
+          <div class="ch"><span class="ct">Spot Positions</span></div>
+          <div class="tscroll"><table><thead><tr>
+            <th scope="col">Market</th><th scope="col" class="r">Size</th><th scope="col" class="r">Avg cost</th>
+            <th scope="col" class="r">Mark</th><th scope="col" class="r">Value</th><th scope="col" class="r">P&amp;L</th>
+          </tr></thead><tbody id="pfPos"></tbody></table></div>
+        </div>
+        <div class="card span12">
+          <div class="ch"><span class="ct">Pre-IPO Vaults</span></div>
+          <div class="tscroll"><table><thead><tr>
+            <th scope="col">Vault</th><th scope="col">Status</th><th scope="col" class="r">Subscribed</th>
+            <th scope="col" class="r">Vault tokens</th><th scope="col" class="r">Shares taken</th><th scope="col" class="r">Action</th>
+          </tr></thead><tbody id="pfVaults"></tbody></table></div>
+        </div>
+      </div>
+    </div></section>
+
+    <!-- ═══ PRE-IPO · VALUATION FUTURES ═══
+         Each is its own app in a same-origin frame, built on first visit by
+         embedFrame() in p6-preipo.js and kept for the session after that. -->
+    <section class="page embed" id="p-preipo"><div class="embHost" id="emb-preipo"></div></section>
+    <section class="page embed" id="p-futures"><div class="embHost" id="emb-futures"></div></section>
+    <!-- ═══ SETTINGS ═══ -->
+    <section class="page" id="p-settings"><div class="pad">
+      <div id="settingsBody"></div>
+    </div></section>
+
+    <!-- ═══ AGENTS ═══ -->
+    <section class="page" id="p-agents"><div class="pad">
+      <div id="agentList">
+        <div class="card hero agHero">
+          <h1 class="agHeroT">Agents</h1>
+          <p class="agHeroS">Standing research agents that watch the listed universe and the
+            pre-IPO pipeline, and report what changed. Findings are observations, not advice.</p>
+          <button class="btn p agHeroB" id="agNewBtn">New agent</button>
+          <div class="hstats agStats" id="agStats"></div>
+        </div>
+        <div class="agGrid" id="agentGrid"></div>
+        <div class="card" style="margin-top:22px">
+          <div class="ch"><span class="ct">Latest Findings</span>
+            <span class="cs">Across every running agent</span></div>
+          <div id="agFeed" style="padding:6px 8px 12px"></div>
+        </div>
+      </div>
+      <div id="agentDetail" style="display:none"></div>
+    </div></section>
+
+  </main>
+</div>
+
+<!-- stock picker, anchored to whichever trigger opened it -->
+<div class="pickMenu" id="pickMenu" role="listbox" aria-label="Choose a market">
+  <div class="pickSearch"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+    <input id="pickQ" placeholder="Search markets..." aria-label="Search markets" autocomplete="off"></div>
+  <div class="pickTabs" id="pickTabs"></div>
+  <div class="pickList" id="pickList"></div>
+</div>
+<div class="ltOverlay" id="ltOverlay" role="dialog" aria-label="Choose a layout">
+  <div class="ltGlow"></div>
+  <div class="ltWrap">
+    <div class="ltHead">
+      <div><h2 class="ltTitle">Start From A Template</h2>
+        <p class="ltSub">Pick a starting point, then use Edit to drag capsules in and out.</p></div>
+      <button class="btn" id="ltClose">Close</button>
+    </div>
+    <div class="ltGrid" id="ltGrid"></div>
+  </div>
+</div>
+<div class="ltOverlay agOverlay" id="agOverlay" role="dialog" aria-label="Configure agent">
+  <div class="ltGlow"></div>
+  <div class="ltWrap" style="max-width:1080px">
+    <div class="ltHead">
+      <div><h2 class="ltTitle" id="agBTitle">New Agent</h2>
+        <p class="ltSub">Pick what it researches and how often it runs. You can change
+          any of this later.</p></div>
+      <button class="btn" id="agBClose">Close</button>
+    </div>
+    <div class="agB">
+      <div class="agBSec"><div class="agBL">Research template</div>
+        <div class="agTplGrid" id="agTplGrid"></div></div>
+      <div class="agBRow">
+        <div class="agBSec"><div class="agBL">Universe</div>
+          <div class="agChips" id="agUni"></div></div>
+        <div class="agBSec"><div class="agBL">Cadence</div>
+          <div class="agChips" id="agCad"></div></div>
+      </div>
+      <div class="agBRow">
+        <div class="agBSec"><div class="agBL">Signals watched</div>
+          <div id="agSigs"></div></div>
+        <div class="agBSec"><div class="agBL">Name</div>
+          <input class="agInput" id="agName" autocomplete="off" aria-label="Agent name">
+          <div class="mini" id="agPrev" style="margin-top:10px"></div></div>
+      </div>
+      <div class="agBFoot">
+        <span class="mini">Agents run against market data in this app. They do not place orders.</span>
+        <button class="btn p" id="agSave">Create agent</button>
+      </div>
+    </div>
+  </div>
+</div>
+<div class="ltMenu" id="ltMenu" role="dialog" aria-label="Choose a layout">
+  <div class="ltmHead"><span class="ct">Layout</span>
+    <span class="cs">Pick a starting point, then drag capsules with Edit.</span></div>
+  <div class="ltmGrid" id="ltmGrid"></div>
+</div>
+<div class="pickScrim" id="pickScrim"></div>
+
+<div class="scrim" id="scrim"></div>
+<aside class="tick" id="tick" aria-label="Order ticket"></aside>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>

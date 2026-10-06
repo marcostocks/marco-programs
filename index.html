@@ -166,6 +166,12 @@ html[data-theme="light"] .cap.on{background:rgba(0,0,0,.045)}
 /* ── primitives ── */
 .page{display:none}
 .page.on{display:block}
+/* Pre-IPO and Futures are apps in frames: the frame is the page, edge to edge
+   beside the rail and a viewport tall, and it scrolls itself. The shell's zoom
+   is undone on the frame, so each app renders at the scale it was designed at
+   rather than at the product of both. */
+.embHost{height:calc(100vh / var(--z))}
+.embHost iframe{display:block;border:0;width:100%;height:100%;background:var(--bg);zoom:calc(1 / var(--z))}
 .pad{padding:26px 28px 56px}
 @media(min-width:1700px){.pad{padding-left:40px;padding-right:40px}}
 @media(min-width:2200px){.pad{padding-left:56px;padding-right:56px}}
@@ -1482,7 +1488,10 @@ html[data-theme="light"] .fhCd .cdv:after{background:rgba(0,0,0,.12);box-shadow:
   .logo,.rsp,.rdiv,.rstat{display:none}
   .rbtn::after{display:none}
   .app[data-wl="on"] .wlp{left:0}
+  /* closed, the watchlist is a grid row of its own here — a screen of nothing */
+  .app:not([data-wl="on"]) .wlp{display:none}
   main{padding-bottom:60px}
+  .embHost{height:calc((100vh - 60px) / var(--z))}
   .g4{grid-template-columns:repeat(2,1fr)}
   .pad{padding:24px 16px 48px}
   .h1{font-size:32px}.px{font-size:38px}
@@ -1499,6 +1508,7 @@ html[data-theme="light"] .fhCd .cdv:after{background:rgba(0,0,0,.12);box-shadow:
     <button class="rbtn" data-nav="trade" data-tip="Trade" aria-label="Trade"><svg viewBox="0 0 24 24"><path d="M4 17l5-5 4 3 7-8"/><path d="M20 7v5h-5"/></svg></button>
     <button class="rbtn" data-nav="portfolio" data-tip="Portfolio" aria-label="Portfolio"><svg viewBox="0 0 24 24"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M8 7V5a2 2 0 012-2h4a2 2 0 012 2v2"/></svg></button>
     <button class="rbtn" data-nav="preipo" data-tip="Pre-IPO" aria-label="Pre-IPO vaults"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="12" cy="12" r="3.4"/></svg></button>
+    <button class="rbtn" data-nav="futures" data-tip="Valuation Futures" aria-label="Valuation futures"><svg viewBox="0 0 24 24"><path d="M3 20h18"/><path d="M6 16l4-4 3 2 5-6"/><path d="M15 8h3v3"/><path d="M6 5v3M4.5 6.5h3"/></svg></button>
     <button class="rbtn" data-nav="agents" data-tip="Agents" aria-label="Research agents"><svg viewBox="0 0 24 24"><rect x="4" y="8" width="16" height="11" rx="3"/><path d="M12 8V4.5M9.5 13h.01M14.5 13h.01M2 12v3M22 12v3"/><circle cx="12" cy="3.4" r="1.4"/></svg></button>
     <div class="rdiv"></div>
     <button class="rbtn" id="wlBtn" data-tip="Watchlist" aria-label="Toggle watchlist" aria-pressed="false"><svg viewBox="0 0 24 24"><path d="M12 3l2.6 5.6 6 .8-4.4 4.2 1.1 6-5.3-3-5.3 3 1.1-6L3.4 9.4l6-.8z"/></svg></button>
@@ -1815,51 +1825,11 @@ html[data-theme="light"] .fhCd .cdv:after{background:rgba(0,0,0,.12);box-shadow:
       </div>
     </div></section>
 
-    <!-- ═══ PRE-IPO ═══ -->
-    <section class="page" id="p-preipo">
-      <div id="vaultList" class="pad">
-        <h1 class="h1">Pre-IPO</h1>
-        <div id="vFeat"></div>
-        <div class="dash">
-          <div class="card posCard" id="vMine"></div>
-          <div class="card allCard">
-            <div class="ch"><span class="ct">All Vaults</span>
-              <span class="cs num" id="vCount">—</span></div>
-            <div class="vrowH"><span>Vault</span><span>Valuation</span><span>Status</span><span>Subscribed</span><span class="r">Closes</span></div>
-            <div id="vgrid"></div>
-          </div>
-        </div>
-        <div class="card flowCard">
-          <div class="ch"><span class="ct">Subscription Flow</span>
-            <span class="cs live"><i class="ldot"></i>Live · by vault</span></div>
-          <div class="flowBody">
-            <div class="flowCh"><canvas id="flowCanvas"></canvas></div>
-            <div class="flowList" id="flowList"></div>
-          </div>
-        </div>
-        <div class="secRow2">
-        <div class="card secCard">
-          <div class="ch"><span class="ct">Pipeline By Sector</span>
-            <span class="cs">Each measure scaled to its own leader</span></div>
-          <div class="chLeg" style="margin:12px 22px 0">
-            <span><i style="background:rgba(226,229,237,.72)"></i>Company valuation</span>
-            <span><i style="background:var(--brand)"></i>Vault capital</span></div>
-          <div class="secBody">
-            <div class="secRadar"><canvas id="secCh"></canvas></div>
-            <div class="secList" id="secList"></div>
-          </div>
-        </div>
-        <div class="card socialCard">
-          <div class="ch"><span class="ct">Social</span>
-            <span class="cs live"><i class="ldot"></i>Live</span></div>
-          <div id="vFeedRail" class="feedRail" data-take="5" style="padding:4px 20px 18px"></div>
-        </div>
-        </div>
-        <div class="foot">Vault tokens are not equity. They redeem on net IPO proceeds, not on the listed share price.
-          Accredited investors only. Not investment advice.</div>
-      </div>
-      <div id="vaultDetail" style="display:none"></div>
-    </section>
+    <!-- ═══ PRE-IPO · VALUATION FUTURES ═══
+         Each is its own app in a same-origin frame, built on first visit by
+         embedFrame() in p6-preipo.js and kept for the session after that. -->
+    <section class="page embed" id="p-preipo"><div class="embHost" id="emb-preipo"></div></section>
+    <section class="page embed" id="p-futures"><div class="embHost" id="emb-futures"></div></section>
     <!-- ═══ SETTINGS ═══ -->
     <section class="page" id="p-settings"><div class="pad">
       <div id="settingsBody"></div>
@@ -1889,12 +1859,6 @@ html[data-theme="light"] .fhCd .cdv:after{background:rgba(0,0,0,.12);box-shadow:
 </div>
 
 <!-- stock picker, anchored to whichever trigger opened it -->
-<div class="pickMenu" id="featMenu" role="listbox" aria-label="Choose a vault">
-  <div class="pickSearch"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
-    <input id="featQ" placeholder="Search vaults..." aria-label="Search vaults" autocomplete="off"></div>
-  <div class="pickTabs" id="featTabs"></div>
-  <div class="pickList" id="featList"></div>
-</div>
 <div class="pickMenu" id="pickMenu" role="listbox" aria-label="Choose a market">
   <div class="pickSearch"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
     <input id="pickQ" placeholder="Search markets..." aria-label="Search markets" autocomplete="off"></div>
@@ -2029,10 +1993,10 @@ const RISKS=[
 
 const VAULTS=[
 {id:'moon',ticker:'MOON',name:'Moonshot AI',nameCn:'月之暗面',sector:'AI / LLM research',hq:'Beijing, China',
- chainId:'moon-2026',   // backed by a real marco-vault; the rest are illustrative
+ chainId:'moon-2026-s',   // the same devnet marco-vault the Pre-IPO app subscribes into
 
- founded:'2023',ceo:'Yang Zhilin',sponsor:'Goldman Sachs · CICC',ipoValuation:'$20B',vaultSize:4e6,
- entryPrice:1,status:'open',raisedUsd:3.9e6,deadline:'15 October 2026',deadlineShort:'15 Oct',close:'2026-10-15T16:00:00Z',
+ founded:'2023',ceo:'Yang Zhilin',sponsor:'Goldman Sachs · CICC',ipoValuation:'$35B',vaultSize:9e5,
+ entryPrice:1,status:'open',raisedUsd:7.65e5,deadline:'15 October 2026',deadlineShort:'15 Oct',close:'2026-10-15T16:00:00Z',
  chains:'USDC on Solana · Ethereum · Base',
  description:'Developer of the Kimi model family and one of China’s “six AI tigers”.',
  longDescription:'Moonshot AI was founded in Beijing in March 2023 by Yang Zhilin, with co-founders Zhou Xinyu and Wu Yuxin, and develops the Kimi family of large language models. Its long-context assistant found early consumer traction in China, and the open-weight Kimi K2 release established it internationally among developers. Alibaba is the largest external shareholder at roughly 36 percent. A May 2026 round led by Meituan’s Long-Z Investments valued the company at about $20 billion — close to a fivefold increase from $4.3 billion at the end of 2025 — and the company has since been reported to be in talks at a materially higher valuation while weighing a Hong Kong listing.',
@@ -2058,60 +2022,10 @@ const VAULTS=[
   {w:'5kQz…8Wne',c:'Solana',a:'$7.5K',t:'1h ago',ty:'Deposit'},
   {w:'0xd419…9c7a',c:'Base',a:'$18.0K',t:'4h ago',ty:'Deposit'}]},
 
-{id:'dseek',ticker:'DSEEK',name:'DeepSeek',nameCn:'深度求索',sector:'AI / LLM research',hq:'Hangzhou, China',
- chainId:'deepseek-2026',   // backed by a real EXIT-FEE marco-vault: deposit mints 1:1, fee at redemption
- founded:'2023',ceo:'Liang Wenfeng',sponsor:'Haitong Securities · CLSA',ipoValuation:'$48B',vaultSize:1e7,
- entryPrice:1,status:'open',raisedUsd:1.18e7,deadline:'10 September 2026',deadlineShort:'10 Sep',close:'2026-09-10T16:00:00Z',
- chains:'USDC on Solana · Ethereum · Base',
- description:'Frontier LLM research lab spun out of High-Flyer Capital.',
- longDescription:'DeepSeek is a Chinese AI research company founded in 2023 as a spin-out of quantitative hedge fund High-Flyer Capital. It develops open-weight frontier language models, most notably the DeepSeek-V and DeepSeek-R series, which achieved near-parity with leading US models at a fraction of the reported training cost. The lab operates with an unusually small research headcount and is funded almost entirely by its parent, giving it independence from external venture pressure but concentrating funding risk in a single source.',
- quote:'DeepSeek proved you don’t need $100B to build a frontier model.',quoteAttr:'Wired, February 2025',
- fin:[{y:'2025',rev:'$468M',gp:'$91M',np:'$33M',m:'7.1%'},{y:'2024',rev:'$210M',gp:'$38M',np:'-$12M',m:'—'},{y:'2023',rev:'$41M',gp:'$6M',np:'-$28M',m:'—'}],
- finFoot:'All figures in USD, converted from RMB. Estimates based on media reports. DeepSeek is privately held by High-Flyer and does not disclose financials. Revenue estimates include API and enterprise licensing.',
- finSource:'36Kr, The Information and CLSA estimates',
- strengths:['Frontier-class model quality at roughly one-tenth the reported training spend of US peers.',
-  'Open-weight release strategy has driven rapid developer adoption across Asia.',
-  'Parent High-Flyer provides captive GPU capacity and balance-sheet funding.',
-  'Research headcount under 200 keeps operating leverage extremely high.',
-  'Strong domestic policy tailwind as China prioritises sovereign AI capability.'],
- comparables:[{t:'DSEEK',i:'DeepSeek',l:'HKEX (est.)',mc:'$48B',ev:'102.6×',self:1},
-  {t:'MOON',i:'Moonshot AI',l:'HKEX (est.)',mc:'$20B',ev:'83.3×'},
-  {t:'BABA',i:'Alibaba',l:'NYSE',mc:'$1.7T',ev:'2.1×'},{t:'0700',i:'Tencent',l:'HKEX',mc:'$3.8T',ev:'5.4×'}],
- news:[{h:'DeepSeek weighs Hong Kong listing as soon as 2027',d:'Advisers have been sounded out on a dual-track process, though no mandate has been awarded.',s:'Reuters',dt:'June 2026'},
-  {h:'R2 model tops open-weight reasoning benchmarks',d:'Independent evaluations place the new release ahead of all other open-weight reasoning models.',s:'The Information',dt:'May 2026'},
-  {h:'High-Flyer commits additional compute capacity',d:'Parent fund allocates a further tranche of GPU capacity to the research subsidiary.',s:'36Kr',dt:'April 2026'}],
- reports:[{t:'China AI: the efficiency thesis',tag:'Research',s:'CLSA'},
-  {t:'Open-weight models and the API price floor',tag:'Industry',s:'SemiAnalysis'},
-  {t:'High-Flyer group structure overview',tag:'Company',s:'Marco Research'}],
- activity:[{w:'0x44b2…e917',c:'Ethereum',a:'$15.0K',t:'45m ago',ty:'Deposit'},
-  {w:'8xKp…9Fma',c:'Solana',a:'$4.2K',t:'2h ago',ty:'Deposit'},
-  {w:'0x91cd…20aa',c:'Base',a:'$50.0K',t:'5h ago',ty:'Deposit'}]},
-
-{id:'red',ticker:'RED',name:'Xiaohongshu',nameCn:'小红书',sector:'Social commerce',hq:'Shanghai, China',
- founded:'2013',ceo:'Mao Wenchao',sponsor:'Morgan Stanley · CICC',ipoValuation:'$25B',vaultSize:3e6,
- entryPrice:1,status:'soon',raisedUsd:0,deadline:'20 November 2026',deadlineShort:'20 Nov',close:'2026-11-20T16:00:00Z',
- chains:'USDC on Solana · Ethereum · Base',
- description:'Lifestyle discovery and social commerce platform.',
- longDescription:'Xiaohongshu (RED) is a lifestyle content and social commerce platform combining user-generated reviews with integrated transactions. It has become the primary product-discovery surface for young urban Chinese consumers, with commerce take-rate monetisation layered on top of an advertising base.',
- quote:'Discovery and checkout collapsed into a single surface.',quoteAttr:'CICC, April 2026',
- fin:[{y:'2025',rev:'$4.8B',gp:'$2.6B',np:'$610M',m:'12.7%'},{y:'2024',rev:'$3.2B',gp:'$1.6B',np:'$280M',m:'8.8%'},{y:'2023',rev:'$2.1B',gp:'$0.9B',np:'$40M',m:'1.9%'}],
- finFoot:'Estimates based on investor materials circulated ahead of the planned listing.',
- finSource:'Investor materials and CICC estimates',
- strengths:['Highest-intent discovery surface among young urban Chinese consumers.',
-  'Commerce take rate layered on an already-profitable advertising base.',
-  'User-generated review corpus is difficult to replicate.',
-  'Net margin inflected sharply positive in 2024.',
-  'Advertising load remains conservative relative to peers.'],
- comparables:[{t:'RED',i:'Xiaohongshu',l:'HKEX (est.)',mc:'$25B',ev:'5.2×',self:1},
-  {t:'PINS',i:'Pinterest',l:'NYSE',mc:'$24B',ev:'6.1×'},{t:'META',i:'Meta Platforms',l:'NASDAQ',mc:'$1.6T',ev:'7.8×'}],
- news:[{h:'Xiaohongshu targets 2027 Hong Kong listing',d:'Banks have been mandated for a listing as soon as the following year.',s:'Bloomberg',dt:'July 2026'}],
- reports:[{t:'Social commerce take rates',tag:'Research',s:'Morgan Stanley'}],
- activity:[]},
-
 {id:'byte',ticker:'BYTE',name:'ByteDance',sector:'Consumer internet',hq:'Beijing, China',founded:'2012',
- ceo:'Liang Rubo',sponsor:'Goldman Sachs · CICC',ipoValuation:'$300B',vaultSize:2e6,entryPrice:1,
- status:'ipo',raisedUsd:2e6,deadline:'Closed',deadlineShort:'Closed',ipoPx:26,
- nrv:1.42,netReturn:'+42.00%',
+ ceo:'Liang Rubo',sponsor:'Goldman Sachs · CICC',ipoValuation:'$550B',vaultSize:1e6,entryPrice:1,
+ chainId:'byte-2026-l',   // the same devnet marco-vault the Pre-IPO app subscribes into
+ status:'open',raisedUsd:0,deadline:'20 October 2026',deadlineShort:'20 Oct',close:'2026-10-20T16:00:00Z',
  chains:'USDC on Solana · Ethereum · Base',
  description:'Operator of TikTok, Douyin and Toutiao.',
  longDescription:'ByteDance operates TikTok and Douyin, the largest short-form video platforms globally and in China respectively, alongside the Toutiao news aggregator and a growing enterprise software division. It is among the largest private technology companies in the world by revenue, with advertising accounting for the substantial majority of the top line.',
@@ -2134,72 +2048,17 @@ const VAULTS=[
  activity:[{w:'0x5b71…9a04',c:'Ethereum',a:'$40.0K',t:'30m ago',ty:'Elect'},
   {w:'7mNp…2Qsx',c:'Solana',a:'$12.4K',t:'3h ago',ty:'Elect'}]},
 
-{id:'shein',ticker:'SHEIN',name:'Shein',sector:'E-commerce',hq:'Singapore',founded:'2008',ceo:'Sky Xu',
- sponsor:'Goldman Sachs · JPMorgan',ipoValuation:'$60B',vaultSize:1e6,entryPrice:1,status:'ipo',
- raisedUsd:1e6,deadline:'Closed',deadlineShort:'Closed',ipoPx:21,
- nrv:1.31,netReturn:'+31.00%',
- chains:'USDC on Solana · Ethereum · Base',
- description:'On-demand fashion manufacturer and marketplace.',
- longDescription:'Shein operates an on-demand apparel supply chain that compresses design-to-delivery cycles to under two weeks, supported by a network of contract manufacturers in southern China. It has expanded from first-party fashion into a third-party marketplace, and generates the majority of revenue outside its domestic market.',
- quote:'Two weeks from sketch to doorstep is the whole moat.',quoteAttr:'Business of Fashion, November 2025',
- fin:[{y:'2025',rev:'$45B',gp:'$18B',np:'$2.1B',m:'4.7%'},{y:'2024',rev:'$38B',gp:'$15B',np:'$1.6B',m:'4.2%'},{y:'2023',rev:'$32B',gp:'$12B',np:'$0.8B',m:'2.5%'}],
- finFoot:'Figures per investor disclosures ahead of listing. Shein does not publish audited public statements.',
- finSource:'Investor disclosures and Business of Fashion',
- strengths:['Design-to-delivery cycle under two weeks versus eight-plus for traditional fast fashion.',
-  'Marketplace expansion adds high-margin third-party revenue without inventory risk.',
-  'Customer acquisition cost remains materially below Western e-commerce peers.',
-  'Supply base is deliberately fragmented across hundreds of contract manufacturers.',
-  'Net margin has nearly doubled over three years.'],
- comparables:[{t:'SHEIN',i:'Shein',l:'LSE',mc:'$60B',ev:'1.3×',self:1},
-  {t:'PDD',i:'PDD Holdings',l:'NASDAQ',mc:'$170B',ev:'3.2×'},{t:'HM-B',i:'H&M',l:'OMX',mc:'$26B',ev:'1.1×'},
-  {t:'ITX',i:'Inditex',l:'BME',mc:'$168B',ev:'4.4×'}],
- news:[{h:'Shein completes London listing',d:'The company priced in London after an extended regulatory review process.',s:'Financial Times',dt:'February 2026'},
-  {h:'Marketplace GMV passes one third of total',d:'Third-party sellers now account for a growing share of platform volume.',s:'Business of Fashion',dt:'January 2026'}],
- reports:[{t:'On-demand supply chains',tag:'Research',s:'JPMorgan'},
-  {t:'Shein listing prospectus',tag:'Filing',s:'LSE'}],
- activity:[{w:'0xab12…5f7c',c:'Ethereum',a:'$18.2K',t:'1h ago',ty:'Elect'},
-  {w:'0x3d55…8e21',c:'Base',a:'$6.0K',t:'6h ago',ty:'Elect'}]},
-
-{id:'sdmc',ticker:'SDMC',name:'Shanghai DMC',sector:'Semiconductors',hq:'Shanghai, China',founded:'2016',
- ceo:'Chen Wei',sponsor:'CICC · Haitong Securities',ipoValuation:'$14B',vaultSize:5e6,entryPrice:1,
- status:'live',nrv:1.24,netReturn:'+24.00%',raisedUsd:5e6,deadline:'Closed',deadlineShort:'Closed',
- chains:'USDC on Solana · Ethereum · Base',
- description:'DRAM and specialty memory manufacturer serving domestic OEMs.',
- longDescription:'Shanghai DMC is a memory semiconductor manufacturer focused on DRAM and specialty NOR flash for domestic Chinese OEMs. It listed on the STAR Market in 2026 after a heavily oversubscribed book. The company benefits directly from domestic substitution policy, with the majority of output contracted to Chinese handset and automotive customers under multi-year supply agreements.',
- quote:'Domestic substitution is no longer a thesis — it is a purchase order.',quoteAttr:'CICC, January 2026',
- fin:[{y:'2025',rev:'$1.92B',gp:'$611M',np:'$248M',m:'12.9%'},{y:'2024',rev:'$1.40B',gp:'$402M',np:'$151M',m:'10.8%'},{y:'2023',rev:'$1.01B',gp:'$244M',np:'$62M',m:'6.1%'}],
- finFoot:'Figures converted from RMB at period-end rates. Audited statements filed with the STAR Market listing prospectus.',
- finSource:'STAR Market prospectus and CICC',
- strengths:['Multi-year supply agreements with the three largest domestic handset OEMs.',
-  'Domestic substitution policy provides a structural demand floor.',
-  'Gross margin expanded 780bps over three years on mix shift to specialty memory.',
-  'Automotive-grade qualification opens a materially higher-margin segment.',
-  'Capacity expansion fully funded from operating cash flow post-listing.'],
- comparables:[{t:'SDMC',i:'Shanghai DMC',l:'STAR',mc:'$877M',ev:'1.9×',self:1},
-  {t:'2454',i:'MediaTek',l:'TWSE',mc:'$74B',ev:'3.1×'},{t:'000660',i:'SK Hynix',l:'KRX',mc:'$92B',ev:'2.4×'},
-  {t:'MU',i:'Micron',l:'NASDAQ',mc:'$118B',ev:'3.6×'}],
- news:[{h:'SDMC prices STAR Market listing at top of range',d:'The book closed heavily oversubscribed with strong domestic institutional demand.',s:'Caixin',dt:'January 2026'},
-  {h:'Automotive-grade DRAM qualification completed',d:'Qualification unlocks supply to two domestic EV platforms from Q3.',s:'DigiTimes',dt:'March 2026'}],
- reports:[{t:'China memory: capacity and policy',tag:'Research',s:'CICC'},
-  {t:'STAR Market listing prospectus',tag:'Filing',s:'SSE'}],
- activity:[{w:'0x2a90…4c11',c:'Ethereum',a:'$22.5K',t:'1h ago',ty:'Redeem'},
-  {w:'0x88fe…7d3b',c:'Base',a:'$9.1K',t:'4h ago',ty:'Redeem'},
-  {w:'3nQw…kL72',c:'Solana',a:'$31.0K',t:'11h ago',ty:'Redeem'}],
- report:[['Total deposits','$5,000,000.00'],['Capital deployed','$5,000,000.00'],['Capital undeployed','$0.00'],
-  ['IPO reference price','$1.00'],['Market exit price','$1.24'],['Gross proceeds','$6,200,000.00'],
-  ['Final net redemption value','$1.24'],['User net return','24.00%'],['Redemption open','26 May 2026'],
-  ['Report / proof','Published']]},
 ];
 const V=id=>VAULTS.find(x=>x.id===id);
 
 const FEED=[
  {n:'Wei Zhang',h:'@weizh',src:'X',t:'12m',b:'Zhipu shipping GLM-5 weights next month per their WeChat. $ZHIPU is the only pre-IPO name with a real enterprise book.',l:34,r:8},
- {n:'Marco Research',h:'@marcoresearch',src:'News',t:'48m',b:'DSEEK vault is 64% subscribed with 8 weeks to deadline. Historically these fill in the final fortnight — size accordingly.',l:112,r:23},
- {n:'Ana Ruiz',h:'@anaruiz',src:'X',t:'1h',b:'Took share delivery on my SHEIN tokens instead of waiting for cash. 5% fee stings but I want the position, not the proceeds.',l:67,r:19},
+ {n:'Marco Research',h:'@marcoresearch',src:'News',t:'48m',b:'MOON vault is 85% subscribed and closes this month. Historically these fill in the final fortnight — size accordingly.',l:112,r:23},
+ {n:'Ana Ruiz',h:'@anaruiz',src:'X',t:'1h',b:'Subscribed to the BYTE vault from Phantom. Fee comes off the redemption, not the deposit — $1,000 in minted 1,000 tokens.',l:67,r:19},
  {n:'r/chinastocks',h:'u/hkmacro',src:'Reddit',t:'2h',b:'$BABA cloud revenue reaccelerating two quarters running and it still trades at 14x. Adding here.',l:88,r:14},
  {n:'Priya Nair',h:'@priyan',src:'X',t:'3h',b:'Reminder that vault tokens redeem on net IPO proceeds, not spot. People keep marking these to the stock price and getting confused.',l:203,r:41},
  {n:'Bloomberg',h:'@business',src:'News',t:'4h',b:'Moonshot AI is in talks for a round valuing it near $30B — a third raise in six months.',l:341,r:52},
- {n:'r/wallstreetbets',h:'u/degenflows',src:'Reddit',t:'5h',b:'SDMC redemption came in at $1.24 against a $1.00 entry. Clean 24% on a six month lock. $SDMC',l:156,r:32},
+ {n:'r/wallstreetbets',h:'u/degenflows',src:'Reddit',t:'5h',b:'Opened a 3x long on the Moonshot valuation future at $35B. Settles at the IPO close, no funding to pay in between. $MOON',l:156,r:32},
  {n:'Kenji Sato',h:'@ksato',src:'X',t:'7h',b:'$SMIC and $ZHIPU moving opposite directions again — the export-control spread is the only China trade that still works.',l:74,r:11},
 ];
 
@@ -2214,7 +2073,7 @@ const HERO_IMG={
   sdmc:'data:image/jpeg;base64,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'
 };
 const HERO_ROSTER=[{t:'m',id:'zhipu'},{t:'v',id:'moon'},{t:'m',id:'baba'},
- {t:'v',id:'dseek'},{t:'m',id:'baba'},{t:'m',id:'minimax'},{t:'v',id:'red'},{t:'m',id:'tencent'}];
+ {t:'v',id:'byte'},{t:'m',id:'xiaomi'},{t:'m',id:'minimax'},{t:'m',id:'tencent'}];
 const BUY_WALLETS=['0x71a3…4d02','5kQz…8Wne','0xd419…9c7a','8xKp…9Fma','0x44b2…e917',
  '3nQw…kL72','0x91cd…20aa','7mNp…2Qsx','0x5b71…9a04','0xab12…5f7c'];
 const BUY_CHAINS=['Ethereum','Solana','Base'];
@@ -2234,7 +2093,7 @@ const START={cash:250000,pos:{
     pdd:{sz:210,avg:73.70},       // +14%
     tencent:{sz:180,avg:52.90},   // +11%
     minimax:{sz:640,avg:29.35}},  //  -4%, the one loser
-  vpos:{byte:{sub:500000,tok:500000,sh:0},shein:{sub:300000,tok:300000,sh:0}}};
+  vpos:{byte:{sub:25000,tok:25000,sh:0}}};
 const S={page:'markets',mkt:MARKETS[0],tf:'1D',side:'buy',cash:0,pos:{},vpos:{},series:[],tab:'orders',
   orders:[],feed:FEED.slice(),elect:'shares',vault:null,cat:'all',q:'',mode:'std',bookTick:0,aboutOpen:false,
   sort:{k:'capN',dir:-1},watch:{zhipu:1,btc:1,baba:1,tencent:1},feedTab:'All',heroI:0,heroHold:0,feedI:0,buys:[],vflow:null,flowT:0,featId:null,layout:'overview',custom:null,chartMkt:null,live:false,
@@ -2249,8 +2108,7 @@ function seed(){S.cash=START.cash;S.pos=JSON.parse(JSON.stringify(START.pos));
   // Except under ?demo=1, where no chain read is ever made — there the seeded
   // figure is all there is, and zeroing it would empty the recorded tour.
   VAULTS.forEach(v=>{if(v.chainId&&!DEMO_MODE){v.raisedUsd=0;return}
-    if(v.id==='dseek'){v.raisedUsd=1.18e7;v.status='open'}
-    if(v.id==='moon'){v.raisedUsd=3.9e6;v.status='open'}if(v.id==='red')v.raisedUsd=0})}
+    if(v.id==='moon'){v.raisedUsd=7.65e5;v.status='open'}})}
 seed();
 
 /* ════════ utils ════════ */
@@ -3581,11 +3439,14 @@ async function syncChainVault(v,opts){
   const st=await chainVault(v,opts);
   if(!st) return false;
 
-  const before=[v.raisedUsd,v.vaultSize,v.status,v.nrv].join('|');
+  const before=[v.raisedUsd,v.vaultSize,v.status,v.nrv,v.close].join('|');
   v.vaultSize=st.cap;
   v.raisedUsd=st.totalDeposits;
   v.status=PHASE_STATUS[st.phase]??v.status;
   v.chainPhase=st.phase;
+  // The deadline the program enforces, so the tape and pipeline count down to
+  // the same moment the Pre-IPO app does.
+  if(st.fundingDeadline>0)v.close=new Date(st.fundingDeadline).toISOString();
   // The subscription fee the vault was created with, so the subscribe quote
   // matches what the program will mint rather than a hard-coded default.
   v.chainFeeBps=st.feeBps;
@@ -3601,7 +3462,7 @@ async function syncChainVault(v,opts){
   const pos=await chainPosition(v,opts);
   if(pos) S.vpos[v.id]={sub:pos.deposited,tok:pos.shares,sh:0};
 
-  return before!==[v.raisedUsd,v.vaultSize,v.status,v.nrv].join('|');
+  return before!==[v.raisedUsd,v.vaultSize,v.status,v.nrv,v.close].join('|');
 }
 
 /** Sync every chain-backed vault. Called before the pre-IPO page renders. */
@@ -3637,25 +3498,13 @@ function tapeMarketsHTML(half){
       <span class="capD num ${dir(m.chg)}">${pctS(m.chg)}</span></span>
     <canvas width="92" height="48" data-sp="${half}${m.id}"></canvas></button>`).join('');
 }
-function tapeVaultHTML(){
-  const list=VAULTS.filter(v=>v.close&&cdParts(v.close));
-  if(!list.length)return tapeMarketsHTML('a');
-  return list.map(v=>{const p=Math.min(100,v.raisedUsd/v.vaultSize*100),pTrue=v.raisedUsd/v.vaultSize*100;
-    return `<button class="cap" data-v="${v.id}" tabindex="-1">
-      <span class="capL"><span class="capN">m${esc(v.ticker)}</span>
-        <span class="capP num">${pTrue.toFixed(0)}% filled</span>
-        <span class="capC num" data-cd="${v.close}">${cdShort(v.close)}</span></span>
-      <span class="capB">${STATUS[v.status].l}</span></button>`}).join('');
-}
 function renderTape(){
   const tape=$('tape');
   // no ticker strip on portfolio, or on the advanced chart workspace
-  if(S.page==='portfolio'||S.page==='preipo'||(S.page==='trade'&&S.mode==='adv')){tape.classList.add('off');return}
+  if(S.page==='portfolio'||EMBED_PAGES.includes(S.page)||(S.page==='trade'&&S.mode==='adv')){tape.classList.add('off');return}
   tape.classList.remove('off');
   // duplicated once so the marquee loops seamlessly at -50%
-  $('tapeRun').innerHTML=S.page==='preipo'
-    ? tapeVaultHTML()+tapeVaultHTML()
-    : tapeMarketsHTML('a')+tapeMarketsHTML('b');
+  $('tapeRun').innerHTML=tapeMarketsHTML('a')+tapeMarketsHTML('b');
   const cs=getComputedStyle($('tapeRun'));
   const capv=v=>cs.getPropertyValue(v).trim();
   $('tapeRun').querySelectorAll('[data-sp]').forEach(c=>{
@@ -3944,8 +3793,12 @@ function renderMarkets(){
   const lN=fitRows('losers',44,2,8);
   $('losers').innerHTML=byChg.slice(-lN).reverse().map(m=>miniRow(m,pctS(m.chg),dir(m.chg))).join('')||'<div class="mini">Loading…</div>';
 
-  $('pipeline').innerHTML=VAULTS.filter(v=>v.status==='open'||v.status==='soon')
-    .slice(0,fitRows('pipeline',62,1,6)).map(v=>{
+  $('pipeline').innerHTML=`<div data-fut style="cursor:pointer;padding:10px 0">
+      <div style="display:flex;justify-content:space-between;gap:12px">
+        <span class="nm">Moonshot AI · Valuation future</span><span class="num mini">Up to 10×</span></div>
+      <div class="mini" style="margin-top:5px">Long or short the valuation · cash-settles at the IPO</div></div>`
+    +VAULTS.filter(v=>v.status==='open'||v.status==='soon')
+    .slice(0,Math.max(1,fitRows('pipeline',62,1,6)-1)).map(v=>{
     const p=Math.min(100,v.raisedUsd/v.vaultSize*100),pTrue=v.raisedUsd/v.vaultSize*100;
     return `<div data-v="${v.id}" style="cursor:pointer;padding:10px 0">
       <div style="display:flex;justify-content:space-between;gap:12px">
@@ -3987,6 +3840,7 @@ function renderMarkets(){
   document.querySelectorAll('#gainers [data-go],#losers [data-go]')
     .forEach(r=>r.onclick=()=>openMarket(r.dataset.go));
   document.querySelectorAll('#pipeline [data-v]').forEach(r=>r.onclick=()=>openVault(r.dataset.v));
+  document.querySelectorAll('#pipeline [data-fut]').forEach(r=>r.onclick=()=>openEmbed('futures'));
   renderFeed();
 }
 function linkCash(t){
@@ -3997,7 +3851,7 @@ function linkCash(t){
     if(vt)return `<span class="cash" data-vault="${vt.id}">$${tk}</span>`;
     return `$${tk}`});
 }
-const FEED_RAILS=[['feedRail','markets'],['vFeedRail','preipo']];
+const FEED_RAILS=[['feedRail','markets']];
 const feedTake=rail=>{
   const h=rail.clientHeight;
   if(h>60)return Math.max(1,Math.min(6,Math.floor(h/78)));
@@ -4318,7 +4172,7 @@ function openLayoutMenu(anchor){
 }
 function closeLayoutMenu(){
   $('ltMenu').classList.remove('on');
-  if(!$('pickMenu').classList.contains('on')&&!$('featMenu').classList.contains('on'))
+  if(!$('pickMenu').classList.contains('on'))
     $('pickScrim').classList.remove('on');
   $('layoutBtn').setAttribute('aria-expanded','false');
 }
@@ -5669,847 +5523,92 @@ function renderPortfolio(){
     :`<tr><td colspan="6" style="text-align:center;color:var(--mute);padding:32px">No pre-IPO vaults</td></tr>`;
   $('pfVaults').querySelectorAll('[data-v]').forEach(r=>r.onclick=()=>openVault(r.dataset.v));
 }
+/* ════════ pre-IPO vaults and valuation futures — embedded products ════════
 
-/* ════════ pre-IPO ════════ */
-function raisedPct(v){return Math.min(100,v.raisedUsd/v.vaultSize*100)}
-/* what you actually hold, beside the offering closing next — four thin stat
-   boxes said less than this does, and repeated numbers already on the page */
-/* vault selector — same shell, tabs, search and key handling as the market picker */
-const FEAT_TABS=[['all','All'],['open','Open'],['soon','Coming soon'],['listed','Listed']];
-let featCat='all',featHi=0,featAnchor=null;
-const featInCat=v=>featCat==='all'
-  ||(featCat==='open'&&v.status==='open')
-  ||(featCat==='soon'&&v.status==='soon')
-  ||(featCat==='listed'&&['live','ipo','locked'].includes(v.status));
-function featRows(){
-  const q=($('featQ').value||'').trim().toLowerCase();
-  return VAULTS.filter(v=>featInCat(v)&&(!q||v.name.toLowerCase().includes(q)
-    ||v.ticker.toLowerCase().includes(q)||v.sector.toLowerCase().includes(q)));
-}
-function renderFeatPick(){
-  $('featTabs').innerHTML=FEAT_TABS.map(t=>
-    `<button class="pickTab${t[0]===featCat?' on':''}" data-fc="${t[0]}">${t[1]}</button>`).join('');
-  $('featTabs').querySelectorAll('[data-fc]').forEach(b=>b.onclick=()=>{
-    featCat=b.dataset.fc;featHi=0;renderFeatPick()});
-  const rows=featRows(),cur=(featuredVault()||{}).id;
-  if(featHi>=rows.length)featHi=Math.max(0,rows.length-1);
-  const head=`<div class="pickHead"><span>Vault</span><span class="pickCol">Valuation</span>
-    <span class="pickCol">Vault size</span><span class="pickCol">Subscribed</span>
-    <span class="pickCol">Closes</span></div>`;
-  $('featList').innerHTML=head+(rows.length?rows.map((v,i)=>
-    `<div class="pickIt${v.id===cur?' on':''}${i===featHi?' hi':''}" data-fp="${v.id}" role="option">
-      <span class="pickMk"><span class="pickIc">${esc(v.ticker[0])}</span>
-        <span style="min-width:0">
-          <span class="pickNm">${esc(v.name)}</span>
-          <span class="mini" style="display:block">${esc(v.sector)}</span></span>
-        <span class="pickChips"><span class="pchip">${STATUS[v.status].l}</span></span></span>
-      <span class="pickCol num">${v.ipoValuation}</span>
-      <span class="pickCol num">${compact(v.vaultSize)}</span>
-      <span class="pickCol pickFill"><i class="pickTrack"><b style="width:${raisedPct(v)}%"></b></i>
-        <span class="num">${subPct(v).toFixed(0)}%</span></span>
-      <span class="pickCol num" style="color:var(--mute)">${hasClock(v)?cdShort(v.close):'—'}</span>
-    </div>`).join('')
-    :'<div class="pickEmpty">No vault matches that.</div>');
-  $('featList').querySelectorAll('[data-fp]').forEach(el=>el.onclick=()=>choose(el.dataset.fp));
-}
-function choose(id){
-  closeFeatPick();
-  if(id&&id!==(featuredVault()||{}).id){S.featId=id;renderVaults()}
-}
-function openFeatPick(anchor){
-  featAnchor=anchor;featCat='all';$('featQ').value='';
-  const rows=featRows();featHi=Math.max(0,rows.findIndex(v=>v.id===(featuredVault()||{}).id));
-  renderFeatPick();
-  const menu=$('featMenu');menu.classList.add('on');$('pickScrim').classList.add('on');
-  anchor.setAttribute('aria-expanded','true');
-  const r=anchor.getBoundingClientRect(),mw=menu.offsetWidth||780;
-  menu.style.left=Math.max(12,Math.min(r.left,innerWidth-mw-12))+'px';
-  menu.style.top=Math.min(r.bottom+6,innerHeight-menu.offsetHeight-12)+'px';
-  setTimeout(()=>$('featQ').focus(),30);
-}
-function closeFeatPick(){
-  $('featMenu').classList.remove('on');$('pickScrim').classList.remove('on');
-  if(featAnchor)featAnchor.setAttribute('aria-expanded','false');
-}
-function wireFeatPick(){
-  const btn=$('featPick');if(!btn)return;
-  btn.onclick=e=>{e.stopPropagation();
-    $('featMenu').classList.contains('on')?closeFeatPick():openFeatPick(btn)};
-}
-function renderMine(){
-  const box=$('vMine');if(!box)return;
-  const held=VAULTS.filter(v=>{const p=S.vpos[v.id];return p&&(p.sub||p.tok||p.sh)});
-  const open=VAULTS.filter(v=>v.status==='open').length;
-  if(!held.length){
-    box.innerHTML=`<div class="ch"><span class="ct">Your Vaults</span></div>
-      <div class="posBody"><div class="posEmpty">No vault positions yet.</div>
-        <div class="posEmptyS">${open} vault${open===1?'':'s'} open for subscription. Vault tokens
-          redeem on net IPO proceeds, not the listed share price.</div></div>`;
-    return;
-  }
-  const rows=held.map(v=>{
-    const p=S.vpos[v.id];
-    const nav=v.nrv||v.entryPrice||1;
-    const val=(p.tok||0)*nav+(p.sh||0)*(v.ipoPx||0);
-    return{v,sub:p.sub||0,cost:vaultCost(p),val,pl:val-vaultCost(p)};
-  }).sort((a,b)=>b.val-a.val);
-  const sub=rows.reduce((a,r)=>a+r.sub,0),val=rows.reduce((a,r)=>a+r.val,0);
-  const cost=rows.reduce((a,r)=>a+r.cost,0);
-  const pl=val-cost,u=pl>=0,pc=cost?pl/cost*100:0;
-  box.innerHTML=`<div class="ch"><span class="ct">Your Vaults</span>
-      <a class="lnk" href="#/portfolio">Portfolio</a></div>
-    <div class="posBody">
-      <div class="posK">Indicative value</div>
-      <div class="posV num">${money(val,0)}</div>
-      <div class="posP num ${u?'up':'dn'}">${smoney(pl,0)} <span style="opacity:.7">(${u?'+':''}${pc.toFixed(2)}%)</span></div>
-      <div class="posCh"><canvas id="posChart"></canvas></div>
-      <div class="posRows">${(()=>{
-        const mx=Math.max(...rows.map(r=>Math.max(r.val,r.sub)),1);
-        return rows.map(r=>{
-          const rp=r.sub?r.pl/r.sub*100:0,ru=rp>=0;
-          const base=Math.min(r.sub,r.val)/mx*100, delta=Math.abs(r.val-r.sub)/mx*100;
-          return `<div class="pbRow" data-pv="${r.v.id}" role="link" tabindex="0">
-            <div class="pbTop"><span class="pbN">${esc(r.v.name)}</span>
-              <span class="pbX num ${ru?'up':'dn'}">${ru?'+':''}${rp.toFixed(1)}%</span></div>
-            <div class="pbTrack"><i class="pbBase" style="width:${base}%"></i><i
-              class="pbDelta ${ru?'up':'dn'}" style="width:${delta}%"></i></div>
-            <div class="pbFoot"><span class="num">${compact(r.sub)}</span>
-              <span class="num">${compact(r.val)}</span></div></div>`}).join('')})()}</div>
-      <div class="posFoot">${money(sub,0)} committed across ${rows.length} vault${rows.length===1?'':'s'}</div>
-    </div>`;
-  if($('posChart'))
-    drawSilverLine($('posChart'),vaultValueSeries(sub,val,rows.map(r=>r.v.id).join('')),
-      {fmt:v=>compact(v)});
-  box.querySelectorAll('[data-pv]').forEach(el=>{
-    el.onclick=()=>openVault(el.dataset.pv);
-    el.onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();openVault(el.dataset.pv)}};
-  });
-}
-/* the flow card, plus the targeted updates a tick implies — a full renderVaults()
-   would restart the social feed and redraw both radars every few seconds */
-function renderFlow(){
-  const cv=$('flowCanvas');if(!cv)return;
-  if(!S.vflow)seedFlow();
-  const rows=flowVaults().map(v=>({v,series:S.vflow[v.id]||[],rate:flowRate(v.id)}))
-    .sort((a,b)=>b.rate-a.rate);
-  const feat=featuredVault();
-  rows.forEach(r=>r.hot=!!(feat&&r.v.id===feat.id));
-  drawFlow(cv,rows);
-  const mx=Math.max(...rows.map(r=>r.rate),1);
-  const lst=$('flowList');
-  if(lst)lst.innerHTML=rows.map(r=>`<div class="flowRow${r.hot?' hot':''}" data-fv="${r.v.id}">
-    <span class="flowN">${esc(r.v.name)}</span>
-    <span class="flowBar"><i style="width:${r.rate/mx*100}%"></i></span>
-    <span class="flowV num">${r.rate>0?compact(r.rate):'—'}</span>
-    <span class="flowP num">${subPct(r.v).toFixed(0)}%</span></div>`).join('');
-  if(lst)lst.querySelectorAll('[data-fv]').forEach(el=>el.onclick=()=>openVault(el.dataset.fv));
-}
-function tickFlowUI(){
-  if(S.page!=='preipo'||S.vault||!$('flowCanvas'))return;
-  const moved=tickFlow();
-  renderFlow();
-  if(!moved)return;
-  VAULTS.forEach(v=>{                      // keep the rows and hero honest
-    const row=document.querySelector(`#vgrid [data-v="${v.id}"]`);
-    if(row){const f=row.querySelector('.barF'),p=row.querySelector('.num.over,.mini.num');
-      if(f)f.style.width=raisedPct(v)+'%';
-      const pct=row.querySelectorAll('span.mini.num');
-      if(pct.length)pct[pct.length-1].textContent=subPct(v).toFixed(0)+'%';}
-  });
-  const feat=featuredVault();
-  if(feat&&$('featCh')){
-    drawFill($('featCh'),feat,{capsule:true});
-    const k=document.querySelector('.fhK');
-    if(k)k.innerHTML=`<span class="mini">${compact(feat.raisedUsd)} of ${compact(feat.vaultSize)} committed</span>
-      <span class="mini num">${subPct(feat).toFixed(0)}%</span>`;
-  }
+   Both are complete apps that also ship on their own. Inside the platform each
+   runs in a same-origin frame filling the page beside the rail, and the shell
+   owns what the three have to share: the theme, the wallet and the URL.
 
-}
-const hasClock=v=>!!(v.close&&cdParts(v.close));
-/* the offering in the hero: whatever the picker has pinned, else closing soonest */
-const defaultFeatured=()=>VAULTS.filter(v=>v.status==='open'&&hasClock(v))
-  .sort((a,b)=>new Date(a.close)-new Date(b.close))[0]||VAULTS[0]||null;
-const featuredVault=()=>(S.featId&&V(S.featId))||defaultFeatured();
-/* Subscription stops at the vault cap, which is what marco-vault actually
-   does: `deposit` accepts min(intent, cap remaining, per-address remaining)
-   and mints claim tokens 1:1 on the net. There is no oversubscription tier and
-   no best-efforts bucket on-chain, so there is none here — a subscriber who
-   gets in gets the allocation. */
+   The contract is window.MarcoShell. An embedded app registers
+   {theme, wallet, route} with it, and reports its own wallet and route changes
+   back. Opened anywhere else an app never finds a shell, and behaves exactly as
+   it does standalone. */
+
+/* vault arithmetic the markets, portfolio and agents views still use */
 const subPct=v=>Math.min(100,v.raisedUsd/v.vaultSize*100);
-/* The protocol fee is a front-end load on the subscription: you commit the
-   full amount, the net (amount less the fee) is deployed to the offering and
-   mints claim tokens 1:1, and the fee is settled when the vault settles — it is
-   never charged again on the redemption proceeds. 20,000 in at 500 bps deploys
-   a 19,000 net subscription; the 1,000 fee is realised at settlement. A
-   chain-backed vault reports its own rate, so the quote matches it. */
-const feeBpsOf=v=>v.chainFeeBps??VAULT_FEE_BPS;
-/* Where the fee lands. An exit-fee vault mints claim tokens 1:1 against the
-   GROSS deposit and takes the fee out of the redemption instead; an entry-fee
-   vault takes it off the top and mints the net. Set from chain per vault. */
-const feeAtExitOf=v=>chainLive()?(v.chainFeeAtExit??true):true;   // exit-fee by default; real config once a wallet reads the program
-/* What a subscription mints. Exit-fee: the full gross, no fee now. Entry-fee:
-   gross less the fee. `fee` here is what is charged NOW (0 for exit-fee). */
-function entrySplit(v,gross){
-  if(feeAtExitOf(v))return{fee:0,net:gross};
-  const fee=gross*feeBpsOf(v)/10000;
-  return{fee,net:gross-fee};
-}
-/* The fee deducted at redemption (0 for an entry-fee vault, which already
-   charged it). The base is the REDEMPTION VALUE — what you actually withdraw —
-   so it scales with the outcome: on a 1,000 subscription at 5%, a flat deal
-   pays 950, a +20% deal pays 1,140 and a −20% deal pays 760. */
-const exitFeeOn=(v,grossPayout)=>feeAtExitOf(v)?grossPayout*feeBpsOf(v)/10000:0;
-/* Cost basis for a vault position: what the tokens actually cost, which is the
-   subscription net of the fee. The fee is a front-end load and is not
-   recoverable, but it is a transaction cost, not a mark-to-market move —
-   measuring P&L against the gross subscription opens every fresh position at
-   minus the fee, which is not what the holding has done. The fee is disclosed
-   on its own line instead of being buried in an unrealised loss. */
 const vaultCost=p=>Math.max(0,(p.sub||0)-(p.fee||0));
-/* Chain reads give gross deposited and net shares; on an entry-fee vault the
-   difference is the fee already paid. An exit-fee vault mints 1:1, so nothing
-   has been paid yet — the fee is owed at redemption. */
-const feeFromChain=(v,deposited,shares)=>
-  feeAtExitOf(v)?0:Math.max(0,deposited-shares*(v.entryPrice||1));
-const feeNote=v=>{const p=(feeBpsOf(v)/100).toFixed(2);
-  return feeAtExitOf(v)
-    ? `No fee on the way in: your full subscription mints claim tokens 1:1, so $1,000 gives you $1,000 of tokens. `
-      +`The ${p}% fee is taken from your redemption instead — you receive your proceeds less ${p}%.`
-    : `A ${p}% fee applies to your subscription and is settled when the vault settles. `
-      +`Your net subscription — the amount less ${p}% — is what earns; redemption pays it out in full, `
-      +`with no further fee on the proceeds.`};
 const gtdRoom=v=>Math.max(0,v.vaultSize-v.raisedUsd);
-function renderVaults(){
-  const tvl=VAULTS.reduce((a,v)=>a+v.raisedUsd,0);
-  const open=VAULTS.filter(v=>v.status==='open').length;
-  const mine=Object.keys(S.vpos).reduce((a,id)=>a+(S.vpos[id].sub||0),0);
-  const fill=VAULTS.reduce((a,v)=>a+subPct(v),0)/VAULTS.length;
-  renderMine();
 
-  // featured: the open vault closing soonest
-  const feat=featuredVault();
-  $('vFeat').innerHTML=feat?`<div class="card vfeat lift" data-feat="${feat.id}"
-    role="link" tabindex="0" aria-label="Open ${esc(feat.name)}">
-    <div class="fhead">
-      <span class="badge${feat.status==='open'||feat.status==='live'?' live':''}">${
-        feat.id===defaultFeatured().id?'Closing next':STATUS[feat.status].l}</span>
-      <button class="picker fpick" id="featPick" aria-haspopup="listbox" aria-expanded="false">
-        <span class="mark" style="width:58px;height:58px;border-radius:16px;font-size:24px">${esc(feat.ticker[0])}</span>
-        <span style="min-width:0">
-          <span class="fname">${esc(feat.name)}</span>
-          <span class="mini">${esc(feat.sector)}</span></span>
-        <svg class="pickCar" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg>
-      </button>
-      <div class="vdesc">${esc(feat.description)}</div>
-    </div>
-    ${hasClock(feat)?`<div class="fhClock">
-      <div class="fhClockK">Subscription closes in</div>
-      <div class="cdn fhCd" data-cdfull="${feat.close}"></div>
-      <div class="fhClockD">${esc(feat.deadline||feat.deadlineShort||'')}</div>
-    </div>`:`<div class="fhClock">
-      <div class="fhClockK">Status</div>
-      <div class="fhClosed">${STATUS[feat.status].l}</div>
-      <div class="fhClockD">${esc(feat.deadlineShort||'—')}</div>
-    </div>`}
-    <div class="fstats">${[
-      ['Valuation',feat.ipoValuation,'pre-money'],
-      ['Vault size',compact(feat.vaultSize),compact(gtdRoom(feat))+' room left'],
-      ['Subscribed',subPct(feat).toFixed(0)+'%',compact(feat.raisedUsd)+' committed']
-    ].map(x=>`<div class="hstat"><div class="hk">${x[0]}</div>
-      <div class="hv num">${x[1]}</div>
-      <div class="hsub num">${x[2]}</div></div>`).join('')}</div>
-    <div class="fhFill">
-      <div class="fhCh"><canvas id="featCh"></canvas></div>
-    </div>
-    </div>`:'';
-  if(feat){
-    const card=$('vFeat').querySelector('[data-feat]');
-    card.addEventListener('click',e=>{
-      if(e.target.closest('.fpick,.pickMenu'))return;openVault(feat.id)},true);
-    card.onkeydown=e=>{
-      if(e.target!==card)return;
-      if(e.key==='Enter'||e.key===' '){e.preventDefault();openVault(feat.id)}};
-    wireFeatPick();
-    if($('featCh'))drawFill($('featCh'),feat,{capsule:true});
+const EMBEDS={
+  preipo:{src:'apps/preipo/index.html',title:'Marco pre-IPO vaults'},
+  futures:{src:'apps/futures/index.html',title:'Marco valuation futures'},
+};
+const EMBED_PAGES=Object.keys(EMBEDS);
+const embedApi={};     // page → the API its frame registered
+const embedWant={};    // page → a route asked for before the frame was ready
+
+const shellTheme=()=>document.documentElement.getAttribute('data-theme')||'dark';
+/* A real wallet is shared with the frames; the labelled simulation is not —
+   handing it on would have a frame try to sign with a wallet that isn't there. */
+const realWallet=()=>!!S.wallet&&S.walletKind!=='simulated';
+const eachEmbed=fn=>Object.values(embedApi).forEach(api=>{try{fn(api)}catch(e){console.warn(e)}});
+
+/* The shell's @font-face rules, for a frame that ships without its own fonts. */
+function shellFontCSS(){
+  let css='';
+  for(const sh of document.styleSheets){
+    let rules;try{rules=sh.cssRules}catch{continue}
+    for(const r of rules)if(r.type===CSSRule.FONT_FACE_RULE)css+=r.cssText+'\n';
   }
+  return css;
+}
 
-  const vc=$('vCount');if(vc)vc.textContent=VAULTS.length+' offerings';
-  $('vgrid').innerHTML=VAULTS.map(v=>{const p=raisedPct(v);
-    return `<div class="vrow" data-v="${v.id}" tabindex="0" role="link">
-      <span class="vname"><span class="mark" style="width:32px;height:32px;border-radius:9px;font-size:13px">${esc(v.ticker[0])}</span>
-        <span style="min-width:0"><span class="nm" style="display:block">${esc(v.name)}</span>
-          <span class="mini">${esc(v.sector)}</span></span></span>
-      <span class="num">${v.ipoValuation}</span>
-      <span><span class="badge${v.status==='open'?' live':''}">${STATUS[v.status].l}</span></span>
-      <span><span style="display:flex;align-items:center;gap:10px">
-        <span class="bar" style="flex:1"><span class="barF acc" style="width:${p}%"></span></span>
-        <span class="mini num">${subPct(v).toFixed(0)}%</span></span></span>
-      <span class="r num${v.close&&cdParts(v.close)?'':' mini'}"${v.close&&cdParts(v.close)?` data-cd="${v.close}"`:''}>${
-        v.close&&cdParts(v.close)?cdShort(v.close):'—'}</span></div>`}).join('');
-  const sc=sectorCounts();
-  $('secList').innerHTML=sc.map(d=>`<div class="secRow${d.open?' on':''}">
-      <span class="secN">${esc(d.a)}</span>
-      <span class="secV num">${valB(d.val)}</span>
-      <span class="secL num">${d.n} vault${d.n>1?'s':''} · ${compact(d.size)}</span></div>`).join('');
-  drawRadar($('secCh'),sc);
-  renderFeed();
-  renderFlow();
-  $('vgrid').querySelectorAll('[data-v]').forEach(c=>{
-    c.onclick=()=>openVault(c.dataset.v);
-    c.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();openVault(c.dataset.v)}}});
-  tickCountdowns();
-}
-function heroStats(v){
-  // an open vault has no post-IPO figures yet — showing three "Pending" cells
-  // said nothing, so pre-listing shows the terms that are actually known.
-  // third element is the secondary line beneath the figure.
-  const listed=v.status==='live'||v.status==='ipo';
-  if(listed)return[
-    ['Par value',money(v.entryPrice),'at entry'],
-    ['Post-IPO value',v.nrv?money(v.nrv):'Pending','per vault token'],
-    ['Return',v.netReturn||'Pending','net of fees'],
-    ['Total raised',compact(v.raisedUsd),'in USDC']];
-  return[
-    ['Valuation',v.ipoValuation,'pre-money'],
-    ['Vault size',compact(v.vaultSize),compact(v.raisedUsd)+' committed'],
-    ['Subscribed',subPct(v).toFixed(0)+'%',compact(gtdRoom(v))+' room left'],
-    ['Closes in',v.close&&cdParts(v.close)?cdShort(v.close):'—',esc(v.deadlineShort||v.deadline||'')]];
-}
-/* Your position — mirrors Morpho's tab; empty state when nothing is held */
-function positionHTML(v){
-  const p=S.vpos[v.id];
-  if(!p||(!p.sub&&!p.tok&&!p.sh))
-    return `<div class="tempty">No position in this vault yet.</div>`;
-  const nav=v.nrv||v.entryPrice||1;
-  const val=(p.tok||0)*nav+(p.sh||0)*(v.ipoPx||0);
-  const cost=vaultCost(p);
-  const pl=val-cost, u=pl>=0;
-  const rows=[
-    ['Subscribed',money(p.sub||0)],
-    ...(p.fee?[['Entry fee',money(p.fee)]]:[]),
-    ['Vault tokens',qty(p.tok||0,0)+' m'+v.ticker],
-    ...(p.sh?[['Shares taken',qty(p.sh,0)]]:[]),
-    ['Indicative value',money(val)],
-    ['Unrealised',smoney(pl)+' ('+(cost?((u?'+':'')+(pl/cost*100).toFixed(2)):'0.00')+'%)'],
-    ['Status',STATUS[v.status].l]];
-  return `<div class="g4" style="padding:4px 0 0">${rows.map(r=>
-    `<div class="cell"><div class="cellK">${r[0]}</div>
-      <div class="cellV num ${/Unrealised/.test(r[0])?(u?'up':'dn'):''}">${r[1]}</div></div>`).join('')}</div>`;
-}
-function openVault(id){
-  const v=V(id);if(!v)return;S.vault=v;
-  $('vaultList').style.display='none';$('vaultDetail').style.display='block';
-  const st=STATUS[v.status],pos=S.vpos[v.id]||{sub:0,tok:0,sh:0},lcIdx=LCIDX[v.status]||0;
-  const secs=[['overview','Overview'],...(v.status==='ipo'?[['election','Take Shares']]:[]),
-    ['timeline','Timeline'],['terms','Terms'],['financials','Financials'],['outlook','Outlook'],
-    ['risk','Risk'],['news','News'],['activity','Activity'],['position','Your Position']];
-  $('vaultDetail').innerHTML=`<div class="pad">
-    <div class="bento">
-      <div class="span8">
-        <div class="vhero">
-        <div class="vtop">
-          <span class="vBadge${v.status==='open'||v.status==='live'?' live':''}">${st.l}</span>
-        </div>
-        <div class="vhead">
-          <span class="mark vtickM">${esc(v.ticker[0])}</span>
-          <h1 class="vTick">${esc(v.name)}</h1>
-        </div>
-        <div class="vMeta">${esc(v.sector)} · ${esc(v.hq)}</div>
-        <div class="vdesc">${esc(v.description)}</div>
-        <div class="hstats">${heroStats(v).map(x=>`<div class="hstat">
-          <div class="hk">${x[0]}</div>
-          <div class="hv num ${/^\+/.test(x[1])?'up':''}">${x[1]}</div>
-          ${x[2]?`<div class="hsub num">${x[2]}</div>`:''}</div>`).join('')}</div>
-        </div>
-        <div class="vbody">
-        <div class="vnav" id="vnav">${secs.map((s,i)=>`<button data-s="${s[0]}" class="${i===0?'on':''}">${s[1]}</button>`).join('')}</div>
-        <section class="vsec" id="s-overview">
-          ${v.raisedUsd>0&&!hasClock(v)?`<div class="vsub">Subscription Build</div>
-          `+`<div class="card chc"><div class="ch"><span class="ct">Cumulative Commitments</span><span class="cs">Against the $ cap</span></div><div class="chWrap sm"><canvas id="fillCh"></canvas></div></div>`:''}
-          <div class="vsub" style="border-top:none;padding-top:0;margin-top:0">About</div>
-          <div class="vprose">${esc(v.longDescription)}</div>
-          ${v.quote?`<blockquote class="quote">“${esc(v.quote)}”<cite>${esc(v.quoteAttr||'')}</cite></blockquote>`:''}
-          <div class="vsub">Valuation Vs Comparables</div>
-          <div class="card chc"><div class="ch"><span class="ct">Post-Money Valuation</span>
-              <span class="cs">${esc(v.name)} in blue · log scale, $B</span></div>
-            <div class="chWrap"><canvas id="valCh"></canvas></div></div>
-          <div class="card chc"><div class="ch"><span class="ct">Share Of The Comparable Set</span>
-              <span class="cs">By latest valuation</span></div>
-            <div class="secBody shBody">
-              <div class="secRadar shRadar"><canvas id="shrCh"></canvas></div>
-              <div class="secList" id="shrList"></div>
-            </div></div>
-          <div class="vsub">Information</div>
-          <div class="vcap">${[['Company',v.name],
-             ['Ticker','m'+v.ticker],['HQ',v.hq],['Founded',v.founded],['CEO',v.ceo],
-             ['Valuation',v.ipoValuation],['Sponsor',v.sponsor],['Sector',v.sector]]
-            .map(r=>`<div class="trow"><span>${r[0]}</span><span>${esc(r[1])}</span></div>`).join('')}</div>
-          <div class="vsub">Strengths</div>
-          <div class="vlist">${v.strengths.map(x=>
-            `<div class="numitem"><div class="numd" style="color:var(--ink-2)">${esc(x)}</div></div>`).join('')}</div>
-        </section>
-        ${v.status==='ipo'?electionHTML(v,pos):''}
-        <section class="vsec" id="s-outlook">
-          <div class="vsub" style="border-top:none;padding-top:0;margin-top:0">Listing Scenarios</div>
-          <div class="card chc"><div class="ch"><span class="ct">Value Per Vault Token</span>
-              <span class="cs">Par ${money(v.entryPrice)} · ${(VAULT_FEE_BPS/100).toFixed(2)}% fee at redemption</span></div>
-            <div class="chWrap"><canvas id="scnCh"></canvas></div></div>
-          <div class="tscroll" style="margin-top:14px"><table><thead><tr>
-            <th scope="col">Case</th><th scope="col" class="r">Listing vs offering</th>
-            <th scope="col" class="r">Implied valuation</th><th scope="col" class="r">Value per token</th>
-            <th scope="col" class="r">Return</th></tr></thead><tbody>
-            ${scenarioRows(v).map(r=>`<tr><td class="nm">${r[0]}</td><td class="r num">${r[1]}</td>
-              <td class="r num">${r[2]}</td><td class="r num">${r[3]}</td>
-              <td class="r num ${r[4].startsWith('+')?'up':'dn'}">${r[4]}</td></tr>`).join('')}
-            </tbody></table></div>
-          <div class="vsub">Split Of Views</div>
-          <div class="card chc"><div class="ch"><span class="ct">${OUTLOOK[v.id]?OUTLOOK[v.id].sent[0]:0}% Bullish</span>
-              <span class="cs">${OUTLOOK[v.id]?OUTLOOK[v.id].n:0} desks polled</span></div>
-            <div class="chWrap xs"><canvas id="sentCh"></canvas></div></div>
-          <div class="mini" style="line-height:1.5;margin-top:14px">Scenario multiples and the split of
-            views are the sponsor's summary of sell-side and secondary-market opinion. They are estimates,
-            not forecasts, and carry no commitment as to where ${esc(v.name)} lists.</div>
-        </section>
-        <section class="vsec" id="s-timeline">
-          <div class="vsub" style="border-top:none;padding-top:0;margin-top:0">Lifecycle</div>
-          <div class="lc">${LC.map((k,i)=>{const cl=i<lcIdx?'done':i===lcIdx?'active':'future';
-            const dts=v.status==='live'?['Done','Done','Done','Listed','Now']
-              :v.status==='ipo'?['Done','Done','Done','Listed','Pending']
-              :v.status==='locked'?['Done','Done','','TBD','']
-              :['',v.deadlineShort,'','TBD',''];
-            return `<div class="lcn ${cl}"><div class="lck">${k}</div><div class="lcd">${dts[i]||''}</div></div>`}).join('')}</div>
-          <div class="vsub">Key Dates</div>
-          <div class="vcap">${[['Subscription opens','Open'],['Subscription closes',v.deadline],
-            ['Allocation and lock-up','On close'],['Listing',v.status==='live'||v.status==='ipo'?'Listed':'Expected 2027'],
-            ['Redemption or share delivery',v.status==='ipo'?'Open now':'After listing']]
-            .map(r=>`<div class="trow"><span>${r[0]}</span><span>${esc(r[1])}</span></div>`).join('')}</div>
-        </section>
-        <section class="vsec" id="s-terms">
-          <div class="vsub">Terms Of Offering</div>
-          <div class="vcap">${termsRows(v).map(r=>
-            `<div class="trow"><span>${r[0]}</span><span>${r[1]}</span></div>`).join('')}</div>
-          ${v.report?`<div class="vsub">Vault Report</div>
-          <div class="g4" style="padding:2px 0 0">${v.report.map(r=>
-            `<div class="cell"><div class="cellK">${r[0]}</div><div class="cellV num">${r[1]}</div></div>`).join('')}</div>`:''}
-        </section>
-        <section class="vsec" id="s-financials">
-          <div class="vsub">Revenue And Gross Profit</div>
-          <div class="card chc"><div class="ch"><span class="ct">Reported Results</span>
-              <span class="cs">Revenue vs gross profit</span></div>
-            <div class="chWrap sm"><canvas id="finCh"></canvas></div></div>
-          <div class="vsub">Reported Figures</div>
-          <div class="tscroll" style="margin-top:0"><table><thead><tr>
-            <th scope="col">Year</th><th scope="col" class="r">Revenue</th><th scope="col" class="r">Gross profit</th>
-            <th scope="col" class="r">Net profit</th><th scope="col" class="r">Net margin</th></tr></thead><tbody>
-            ${v.fin.map(f=>`<tr><td class="nm num">${f.y}</td><td class="r num">${f.rev}</td>
-              <td class="r num">${f.gp}</td><td class="r num">${f.np}</td><td class="r num">${f.m}</td></tr>`).join('')}
-            </tbody></table></div>
-          <div class="mini" style="line-height:1.5;margin-top:12px">${esc(v.finFoot)}</div>
-          <div class="mini" style="margin-top:6px">Source · ${esc(v.finSource)}</div>
-          <div class="vsub">EV / Revenue Vs Comparables</div>
-          <div class="card chc"><div class="ch"><span class="ct">Revenue Multiple</span><span class="cs">At the offering valuation</span></div><div class="chWrap sm"><canvas id="mulCh"></canvas></div></div>
-          <div class="vsub">Public Comparables</div>
-          <div class="tscroll" style="margin-top:0"><table><thead><tr>
-            <th scope="col">Ticker</th><th scope="col">Issuer</th><th scope="col">Listing</th>
-            <th scope="col" class="r">Market cap</th><th scope="col" class="r">EV / revenue</th>
-            </tr></thead><tbody>${v.comparables.map(c=>`<tr${c.self?' style="background:var(--surface)"':''}>
-              <td class="nm num">${c.t}</td><td>${esc(c.i)}</td><td>${esc(c.l)}</td>
-              <td class="r num">${c.mc}</td><td class="r num">${c.ev}</td></tr>`).join('')}
-            </tbody></table></div>
-        </section>
-        <section class="vsec" id="s-risk">
-          <div class="vsub">Payoff At Listing</div>
-          <div class="card chc"><div class="ch"><span class="ct">Value Per Vault Token</span>
-              <span class="cs">Before the ${(VAULT_FEE_BPS/100).toFixed(2)}% redemption fee</span></div>
-            <div class="chWrap"><canvas id="payCh"></canvas></div></div>
-          <div class="vsub">Risk Factors</div>
-          <div class="vlist">${RISKS.map((r,i)=>
-            `<div class="numitem"><div class="numi num">${i+1}</div>
-              <div><div class="numh">${esc(r.h)}</div><div class="numd">${esc(r.d)}</div></div></div>`).join('')}</div>
-        </section>
-        <section class="vsec" id="s-activity">
-          ${v.raisedUsd>0?`<div class="vsub" style="border-top:none;padding-top:0;margin-top:0">Daily Commitments</div>
-          `+`<div class="card chc"><div class="ch"><span class="ct">Inflow By Day</span><span class="cs">Last 6 weeks</span></div><div class="chWrap sm"><canvas id="inCh"></canvas></div></div>`:''}
-          ${v.activity&&v.activity.length?`<div class="vsub">Recent Activity</div>
-          <div class="vlist">${v.activity.map(a=>`<div class="actRow">
-            <span class="tag">${esc(a.ty)}</span><span class="mini num">${esc(a.w)} · ${esc(a.c)}</span>
-            <span class="num">${esc(a.a)}</span><span class="mini">${esc(a.t)}</span></div>`).join('')}</div>`:''}
-        </section>
-        <section class="vsec" id="s-news">${newsHTML(v)}</section>
-        <section class="vsec" id="s-position">${positionHTML(v)}</section>
-        </div>
-        <div class="foot">Marco Labs · Pre-IPO vaults · 2026<br>
-          Not investment advice. Accredited investors only. Vault tokens are not equity and redeem on net IPO proceeds.</div>
-      </div>
-      <div class="span4"><div class="vsticky">
-        ${hasClock(v)?`<div class="vrsec hl cdcap">
-          <div class="cdHead"><span class="cdName">${esc(v.name)}</span>
-            <button class="shareBtn" id="vShare" aria-label="Share ${esc(v.name)}" title="Copy link to this vault">${SHARE_SVG()}</button></div>
-          <div class="mini">Subscription closes in</div><div class="cdn" data-cdfull="${v.close}"></div>
-          ${v.status!=='soon'?`<div class="cdSub num">${compact(v.raisedUsd)} of ${compact(v.vaultSize)} committed (${subPct(v).toFixed(0)}%)</div>
-          ${v.raisedUsd>0?`<div class="vrChart"><canvas id="fillCh"></canvas></div>`:''}`
-          :`<div class="cdSub mute num">Not yet open · ${compact(v.vaultSize)} cap</div>`}</div>`:''}
+window.MarcoShell={
+  theme:shellTheme,
+  fontCSS:shellFontCSS,
+  register(page,api){
+    embedApi[page]=api;
+    api.theme?.(shellTheme());
+    if(realWallet())api.wallet?.(true);
+    if(embedWant[page]!=null){api.route?.(embedWant[page]);embedWant[page]=null}
+  },
+  /* a frame connected or disconnected on its own — e.g. Subscribe asking for a wallet */
+  walletChanged(connected){if(connected!==realWallet())setWallet(connected,{fromFrame:true})},
+  /* keep the address bar on the frame's view, so a pre-IPO deep link can be shared */
+  routeChanged(page,path){
+    if(S.page!==page)return;
+    const h='#/'+page+(path?'/'+path:'');
+    if(location.hash!==h)history.replaceState(null,'',h);
+  },
+  open:(page,path)=>openEmbed(page,path),
+  toast:msg=>toast(msg),
+};
 
-        <div class="vrsec" id="vBuy"></div>
-      </div></div>
-    </div></div>`;
-  renderBuy(v);tickCountdowns();
-  wireShare(v);
-  const showSec=key=>{
-    document.querySelectorAll('#vaultDetail .vsec').forEach(x=>x.classList.toggle('on',x.id==='s-'+key));
-    $('vnav').querySelectorAll('button').forEach(x=>x.classList.toggle('on',x.dataset.s===key));
-    drawVaultCharts(v);
-  };
-  showSec(secs[0][0]);
-  $('vnav').querySelectorAll('button').forEach(b=>b.onclick=()=>showSec(b.dataset.s));
-  if(v.status==='ipo')wireElection(v);
-  go('preipo',true);
-  drawVaultCharts(v);
+/* Frames are built on first visit, then kept: leaving Pre-IPO for Markets and
+   coming back returns to the same offering, scrolled where it was. */
+function embedFrame(page){
+  const host=$('emb-'+page);
+  let f=host.querySelector('iframe');
+  if(f)return f;
+  f=document.createElement('iframe');
+  f.title=EMBEDS[page].title;
+  const want=embedWant[page];embedWant[page]=null;
+  f.src=EMBEDS[page].src+(want?'#/'+want:'');
+  host.appendChild(f);
+  return f;
 }
-/* newest first. Dates are written as "June 2026", so they sort by month index
-   rather than by string. */
-const NEWS_MON=['jan','feb','mar','apr','may','jun','jul','aug','sep','oct','nov','dec'];
-function newsKey(dt){
-  const m=String(dt||'').toLowerCase();
-  const mi=NEWS_MON.findIndex(x=>m.startsWith(x)||m.slice(0,3)===x||m.includes(' '+x));
-  const yr=(m.match(/(20\d\d)/)||[])[1];
-  return (yr?+yr:0)*12+(mi<0?0:mi);
+function openEmbed(page,path){
+  if(path!=null&&!embedApi[page])embedWant[page]=path;
+  if(S.page!==page)go(page);else embedFrame(page);
+  if(path!=null&&embedApi[page])embedApi[page].route?.(path);
 }
-const newsSorted=v=>(v.news||[]).slice().sort((a,b)=>newsKey(b.dt)-newsKey(a.dt));
-function newsHTML(v){
-  const list=newsSorted(v),lead=list[0],rest=list.slice(1);
-  const reports=v.reports||[];
-  if(!lead&&!reports.length)
-    return '<div class="vempty">No coverage has been filed for this vault yet.</div>';
-  return `${lead?`<div class="vsub" style="border-top:none;padding-top:0;margin-top:0">Latest</div>
-    <article class="newsLead">
-      <div class="newsMeta"><span class="tag">${esc(lead.s)}</span>
-        <span class="mini">${esc(lead.dt)}</span></div>
-      <h3 class="newsLeadH">${esc(lead.h)}</h3>
-      <p class="newsLeadD">${esc(lead.d)}</p>
-    </article>`:''}
-    ${rest.length?`<div class="vsub">Earlier Coverage</div>
-    <div class="vlist">${rest.map(n=>`<div class="newsC">
-      <div class="newsH">${esc(n.h)}</div><div class="newsD">${esc(n.d)}</div>
-      <div class="newsS">${esc(n.s)} · ${esc(n.dt)}</div></div>`).join('')}</div>`:''}
-    ${reports.length?`<div class="vsub">Reports &amp; Coverage</div>
-    <div class="vlist">${reports.map(r=>`<div class="newsC">
-      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-        <span class="newsH" style="margin:0">${esc(r.t)}</span><span class="tag">${esc(r.tag)}</span></div>
-      <div class="newsS">${esc(r.s)}</div></div>`).join('')}</div>`:''}
-    <p class="vnote">Headlines shown here are illustrative and are not live wire copy.</p>`;
-}
-const SHARE_SVG=()=>`<svg viewBox="0 0 24 24"><path d="M12 15V3"/><path d="M8.5 6.5L12 3l3.5 3.5"/>
-  <path d="M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7"/></svg>`;
-const vaultUrl=v=>location.origin+location.pathname+location.search+'#/preipo/'+v.id;
-/* the link has to open the vault it names, so sharing hangs off the deep link
-   rather than whatever page happened to be in the address bar */
-function wireShare(v){
-  const b=$('vShare');if(!b)return;
-  b.onclick=async()=>{
-    const url=vaultUrl(v);
-    if(navigator.share){
-      try{await navigator.share({title:v.name+' · Marco Pre-IPO vault',text:v.description,url});return}
-      catch(e){if(e&&e.name==='AbortError')return}      // user dismissed the sheet
-    }
-    if(navigator.clipboard){
-      try{await navigator.clipboard.writeText(url);return toast('Link copied')}catch(e){}
-    }
-    toast(url);
-  };
-}
-const markWord=v=>v.status==='live'||v.status==='ipo'?'Listing':'Offering';
-/* the three cases in figures, since the chart gives shape but not precision */
-function scenarioRows(v){
-  const o=OUTLOOK[v.id];if(!o)return[];
-  const entry=v.entryPrice||1,fee=VAULT_FEE_BPS/1e4,val=parseValB(v.ipoValuation);
-  return[['Bull',o.bull],['Base',o.base],['Bear',o.bear]].map(([k,m])=>{
-    const tok=m*entry*(1-fee),ret=(tok/entry-1)*100;
-    return[k,m.toFixed(2)+'×',val?valB(val*m):'—',money(tok),(ret>=0?'+':'')+ret.toFixed(1)+'%'];
-  });
-}
-let vFontHook=false;
-function drawVaultCharts(v){
-  if(!vFontHook&&document.fonts){vFontHook=true;
-    document.fonts.ready.then(()=>{if(S.vault)drawVaultCharts(S.vault)})}
-  const set=PEER_SETS[v.sector],own=OWN_VAL[v.id];
-  if($('valCh')&&set)drawValChart($('valCh'),{
-    s:set.s.concat(own?[{n:v.name,p:own,priv:1,accent:1}]:[]),
-    mark:parseValB(v.ipoValuation),markLabel:v.ipoValuation+' '+markWord(v)});
-  if($('fillCh'))drawFill($('fillCh'),v,{capsule:hasClock(v)});
-  if($('shrCh')){
-    const sr=shareRows(v);
-    drawShareRadar($('shrCh'),sr);
-    const lg=$('shrList');
-    if(lg)lg.innerHTML=sr.slice().sort((a,b)=>b.share-a.share).map(r=>`<div class="secRow${r.own?' on':''}">
-      <span class="secN">${esc(r.n)}</span>
-      <span class="secBar"><i style="width:${r.share/Math.max(...sr.map(x=>x.share))*100}%"></i></span>
-      <span class="secV num">${(r.share*100).toFixed(1)}%</span>
-      <span class="secL num">${valB(r.val)}</span></div>`).join('');
-  }
-  if($('finCh'))drawFinBars($('finCh'),v.fin);
-  if($('mulCh'))drawMultiples($('mulCh'),v.comparables);
-  if($('payCh'))drawPayoff($('payCh'),v);
-  if($('inCh'))drawInflow($('inCh'),v);
-  if($('scnCh'))drawScenarios($('scnCh'),v);
-  if($('sentCh'))drawSentiment($('sentCh'),v);
-}
-function termsRows(v){
-  const listed=v.status==='live'||v.status==='ipo',p=raisedPct(v);
-  const deployed=v.status==='locked'||listed?v.raisedUsd:0;
-  const rows=[['Issuer','Marco Labs · Pre-IPO vault'],['Instrument',`m${v.ticker}-pre vault token`],
-    ['Redemption basis','Vault tokens redeem on net IPO proceeds, not raw stock price performance.'],
-    ['IPO reference price',listed?money(v.entryPrice):'Pending pricing'],
-    ['Vault entry price',money(v.entryPrice)],['IPO valuation',v.ipoValuation],
-    ['Vault size',money(v.vaultSize,0)],['Vault status',STATUS[v.status].l],
-    ['Allocation status',v.status==='open'?'Open':'Allocation locked'],
-    ['Effective IPO exposure',(v.status==='locked'||listed)?'100.00%':p.toFixed(2)+'%'],
-    ['Deployed capital',compact(deployed)],
-    ['Undeployed capital',compact(Math.max(0,v.vaultSize-deployed))]];
-  if(v.status==='live')rows.push(['Final net redemption value',money(v.nrv)],
-    ['User net return',v.netReturn],['Redemption status','Live']);
-  rows.push(['Committed',`${compact(v.raisedUsd)} (${p.toFixed(1)}%)`],['Settlement',v.chains],
-    ['Ethereum vault','0xcee0…c36fb'],['Base vault','0x3ED4…6d8a7'],['Solana vault','CvNM…TJzb'],
-    ['Deposit deadline',v.deadline],['Protocol fee',(feeBpsOf(v)/100).toFixed(2)+(feeAtExitOf(v)?'%, skimmed from redemption proceeds':'% of subscription, settled at settlement')],
-    ['Vault cap',money(v.vaultSize,0)+' — a hard limit; subscription closes there'],
-    ['Allocation','Every accepted subscription is allocated in full. A deposit that would exceed the cap is partially filled, and the unfilled portion never leaves your wallet.'],
-    ['Audit','0xMacro · Marco A-01']);
-  return rows;
-}
-function electionHTML(v,pos){
-  const per=v.ipoPx?1/v.ipoPx:0;
-  return `<section class="vsec" id="s-election">
-    <div class="card" style="padding:24px">
-      <div style="font-size:17px;color:var(--ink-2);line-height:1.55;margin-bottom:20px;max-width:640px">
-        ${esc(v.name)} has listed. Convert your m${v.ticker} vault tokens into a real ${esc(v.name)} share position —
-        the broker delivers the shares off-chain — or keep them to redeem for USDC once the sale settles.
-        Converting burns the tokens and pays a ${(VAULT_FEE_BPS/100).toFixed(2)}% share-delivery fee in USDC.</div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:20px">
-        <div class="opt ${S.elect==='shares'?'on':''}" data-o="shares" role="radio" tabindex="0" aria-checked="${S.elect==='shares'}">
-          <div class="optH"><span class="chk"></span>Take shares</div>
-          <div class="optD">Real spot position delivered by the broker. ${(VAULT_FEE_BPS/100).toFixed(2)}% delivery fee in USDC.</div></div>
-        <div class="opt ${S.elect==='cash'?'on':''}" data-o="cash" role="radio" tabindex="0" aria-checked="${S.elect==='cash'}">
-          <div class="optH"><span class="chk"></span>Wait for cash</div>
-          <div class="optD">Keep tokens and redeem pro-rata USDC when redemption opens.</div></div></div>
-      <div class="trow"><span>Your vault tokens</span><span class="num">${qty(Math.round(pos.tok),0)} m${v.ticker}</span></div>
-      <div class="trow"><span>IPO price</span><span class="num">${money(v.ipoPx)} per share · ${per.toFixed(4)} shares per token</span></div>
-      <div class="trow" style="align-items:center"><span>Convert</span>
-        <span style="flex:1;max-width:260px"><span class="inp"><input id="eAmt" type="number" class="num" min="0" value="${Math.round(pos.tok)}" aria-label="Tokens to convert">
-          <span>m${v.ticker}</span><button id="eMax">Max</button></span></span></div>
-      <div class="trow"><span>You receive</span><span class="num" id="eRecv">—</span></div>
-      <button class="cta" id="eCta" style="margin-top:20px">Convert</button>
-      <div class="mini" style="margin-top:12px">Or keep your tokens and redeem for USDC when redemption opens.</div>
-    </div></section>`;
-}
-function wireElection(v){
-  const pos=S.vpos[v.id]||{sub:0,tok:0,sh:0},per=v.ipoPx?1/v.ipoPx:0;
-  const upd=()=>{const n=parseFloat($('eAmt').value)||0;
-    if(S.elect==='shares'){const sh=Math.floor(n*per),used=per?Math.round(sh/per):0,fee=used*VAULT_FEE_BPS/1e4;
-      $('eRecv').textContent=`${qty(sh,0)} shares · fee ${money(fee)} · ${qty(Math.max(0,Math.round(n-used)),0)} m${v.ticker} kept`;
-      $('eCta').textContent=sh>0?`Convert into ${qty(sh,0)} shares`:'Convert'}
-    else{$('eRecv').textContent=`≈ ${money(n)} at settlement`;$('eCta').textContent='Keep tokens for cash'}};
-  document.querySelectorAll('#s-election [data-o]').forEach(o=>{
-    const pick=()=>{S.elect=o.dataset.o;
-      document.querySelectorAll('#s-election [data-o]').forEach(x=>{
-        const on=x.dataset.o===S.elect;x.classList.toggle('on',on);x.setAttribute('aria-checked',on)});
-      upd()};
-    o.onclick=pick;o.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();pick()}}});
-  $('eAmt').oninput=upd;$('eMax').onclick=()=>{$('eAmt').value=Math.round(pos.tok);upd()};upd();
-  $('eCta').onclick=()=>{
-    const n=parseFloat($('eAmt').value)||0,p=S.vpos[v.id];
-    if(!p||p.tok<=0)return toast('You don’t hold tokens in this vault.');
-    if(!(n>0))return toast('Enter a token amount above zero.');
-    if(n>p.tok+1e-6)return toast('You don’t hold that many tokens.');
-    if(S.elect==='cash')return toast(`Kept ${qty(Math.round(n),0)} m${v.ticker} for cash redemption`);
-    const sh=Math.floor(n*per);
-    if(sh<=0)return toast('Amount too small to deliver a whole share.');
-    const used=Math.round(sh/per),fee=used*VAULT_FEE_BPS/1e4;
-    if(fee>S.cash)return toast(`Need ${money(fee)} USDC to cover the ${(VAULT_FEE_BPS/100).toFixed(2)}% fee.`);
-    S.cash-=fee;p.tok-=used;p.sh+=sh;
-    toast(`Converted ${qty(used,0)} m${v.ticker} into ${qty(sh,0)} ${v.name} shares · fee ${money(fee)}`);
-    openVault(v.id);renderPortfolio()};
-}
-function renderBuy(v){
-  const box=$('vBuy'),pos=S.vpos[v.id]||{sub:0,tok:0,sh:0},st=STATUS[v.status];
-  const room=()=>Math.max(0,v.vaultSize-v.raisedUsd);
-  if(v.status==='open'){
-    box.innerHTML=`<div class="ct" style="margin-bottom:12px">Subscribe</div>
-      <div class="depbox">
-        <div class="depTop"><span class="depL">Amount</span>
-          <span class="depL num">Balance ${money(S.cash,0)}</span></div>
-        <input id="bAmt" type="number" class="num depAmt" min="100" value="1000" aria-label="Subscription amount">
-        <div class="depBot"><span class="depSub num" id="bAmtUsd">$0</span>
-          <span class="depUnit">${usdc()}<button id="bMax">MAX</button></span></div>
-      </div>
-      <button class="cta" id="bCta">Subscribe</button>
-      <div class="row" style="margin-top:16px"><span>Fee (${(feeBpsOf(v)/100).toFixed(2)}%) · at ${feeAtExitOf(v)?'redemption':'settlement'}</span><b class="num" id="bFee">—</b></div>
-      <div class="row"><span>${feeAtExitOf(v)?'Subscription':'Net subscription'}</span><b class="num" id="bNet">—</b></div>
-      <div class="row"><span>You receive</span><b class="num" id="bGtd">—</b></div>
-      <div class="row"><span>Indicative NAV</span><b class="num">${money(v.entryPrice)}</b></div>
-      <div class="row"><span>Room left</span><b class="num">${compact(gtdRoom(v))}</b></div>
-      <div class="mini" id="bNote" style="margin-top:14px;line-height:1.5">${feeNote(v)}</div>`;
-    const upd=()=>{const n=parseFloat($('bAmt').value)||0;
-      const acc=Math.max(0,Math.min(n,gtdRoom(v),S.cash));
-      const {fee,net}=entrySplit(v,acc);
-      const us=$('bAmtUsd');if(us)us.textContent=n>0?money(n,0):'';
-      // The quote must be what the program will actually mint: tokens are
-      // minted 1:1 against the NET subscription, so quoting the gross would
-      // promise more than the deposit delivers.
-      $('bGtd').textContent=qty(Math.round(net),0)+` m${v.ticker}`;
-      $('bFee').textContent=fee>0?money(fee,0):'—';
-      const bn=$('bNet');if(bn)bn.textContent=net>0?money(net,0):'—';
-      $('bCta').textContent=acc>0?`Subscribe ${money(acc,0)}`:'Subscribe';
-      const note=$('bNote');
-      if(n>acc+.005)
-        note.innerHTML=`<b style="color:var(--ink)">Capped at ${money(acc,0)}</b> — limited by ${acc>=gtdRoom(v)-.005?'the room left in the vault':'your USDC balance'}.`;
-      else
-        note.innerHTML=feeNote(v)};
-    $('bAmt').oninput=upd;
-    $('bMax').onclick=()=>{$('bAmt').value=Math.floor(Math.min(gtdRoom(v),S.cash));upd()};
-    upd();
-    $('bCta').onclick=async()=>{
-      const want=parseFloat($('bAmt').value)||0;
-      if(!(want>=100))return toast('Minimum subscription is $100.');
-
-      // A chain-backed vault must never simulate silently. When the chain
-      // bundle is present but no wallet is connected, ask for the wallet —
-      // otherwise a visitor would "subscribe" to a real vault and nothing
-      // would happen on-chain. Absent bundle (opened off disk) still falls
-      // back to the simulation, which is that mode's honest behaviour.
-      if(!DEMO_MODE&&v.chainId&&!chainLive()){
-        const c=await chain();
-        if(c){
-          try{ await connectWallet(); }catch(e){ return toast(e.message) }
-          if(!chainLive())return;
-        }
-      }
-
-      // Chain-backed vault: the deposit is signed by the holder's own wallet
-      // and the program decides what is accepted. Nothing is predicted here —
-      // the resulting position is read back from the BuyerState PDA.
-      if(chainLive()&&v.chainId){
-        const st=await chainVault(v,{fresh:true});
-        if(st&&st.acceptingDeposits){
-          const cta=$('bCta'),label=cta.textContent;
-          cta.disabled=true;cta.textContent='Confirm in your wallet…';
-          try{
-            const {position}=await window.MarcoChain.deposit(v.chainId,want);
-            invalidateChain(v);
-            S.vpos[v.id]={sub:position.deposited,tok:position.shares,sh:0,
-              fee:feeFromChain(v,position.deposited,position.shares)};
-            toast(`Subscribed ${money(position.deposited,0)} · ${qty(Math.round(position.shares),0)} m${v.ticker}`);
-            renderVaults();openVault(v.id);renderPortfolio();
-          }catch(e){
-            toast(`Deposit failed · ${e.message}`);
-            cta.disabled=false;cta.textContent=label;
-          }
-          return;
-        }
-        if(st)return toast(`Vault is ${st.phase} on-chain — deposits are closed.`);
-      }
-
-      // Mirrors the program's partial fill: accept up to the cap, allocate all
-      // of it. Whatever is taken from the wallet is allocated 1:1 — there is
-      // no portion left pending.
-      // Mirrors the program: accept up to the cap, deploy the net subscription
-      // (amount less the fee) and mint 1:1 against it; the fee settles later.
-      const acc=Math.min(want,gtdRoom(v),S.cash);
-      if(acc<=0)return toast(gtdRoom(v)<=0?'Vault is fully subscribed.':'Not enough USDC.');
-      const {fee,net}=entrySplit(v,acc);
-      S.cash-=acc;v.raisedUsd+=acc;
-      const p=S.vpos[v.id]||(S.vpos[v.id]={sub:0,tok:0,sh:0,fee:0});
-      p.sub+=acc;p.tok+=net;p.fee=(p.fee||0)+fee;
-      if(v.raisedUsd>=v.vaultSize-.005)v.status='locked';
-      toast(`Subscribed ${money(acc,0)} for ${qty(Math.round(net),0)} m${v.ticker}`);
-      renderVaults();openVault(v.id);renderPortfolio()};
-  }else if(v.status==='live'){
-    box.innerHTML=`<div class="ct" style="margin-bottom:14px">Redeem</div>
-      <div class="row" style="padding-top:0"><span>Order type</span><b>Burn m${v.ticker} → USDC</b></div>
-      <div class="row"><span>Your balance</span><b class="num">${qty(Math.round(pos.tok),0)} m${v.ticker}</b></div>
-      <div class="fld"><div class="fldL"><span>Redeem</span><span class="num">NAV ${money(v.nrv)}</span></div>
-        <div class="inp"><input id="bAmt" type="number" class="num" min="0" value="${Math.round(pos.tok)}" aria-label="Tokens to redeem">
-          <span>m${v.ticker}</span><button id="bMax">Max</button></div></div>
-      <div class="row"><span>Settlement NAV</span><b class="num">${money(v.nrv)} · final</b></div>
-      <div class="row"><span>Protocol fee</span><b class="num" id="bXFee">${feeAtExitOf(v)?`${(feeBpsOf(v)/100).toFixed(2)}% · taken here`:'Taken at deposit · none here'}</b></div>
-      <div class="row"><span>You receive</span><b class="num" id="bRecv">—</b></div>
-      <div class="row tot"><span>Settlement</span><b style="font-size:13px">USDC · Ethereum</b></div>
-      <button class="cta" id="bCta">Redeem</button>
-      <div class="mini" style="margin-top:12px;line-height:1.5">${feeAtExitOf(v)
-        ? `Nothing was charged when you subscribed, so the ${(feeBpsOf(v)/100).toFixed(2)}% fee is taken here — on what you withdraw. You receive your proceeds less ${(feeBpsOf(v)/100).toFixed(2)}%, so the fee rises if the deal did well and falls if it did not.`
-        : `Burn your tokens and receive USDC at the final settlement value of ${money(v.nrv)}. Redemption is a pure pass-through — the ${(feeBpsOf(v)/100).toFixed(2)}% subscription fee is settled at settlement and nothing further is charged here.`}</div>`;
-    const redeemNet=t=>{const g=t*v.nrv;return g-exitFeeOn(v,g)};
-    const upd=()=>{const n=parseFloat($('bAmt').value)||0;$('bRecv').textContent=money(redeemNet(n));
-      const xf=$('bXFee');
-      if(xf&&feeAtExitOf(v))xf.textContent=n>0
-        ? `−${money(exitFeeOn(v,n*v.nrv))} · ${(feeBpsOf(v)/100).toFixed(2)}% of proceeds`
-        : `${(feeBpsOf(v)/100).toFixed(2)}% · taken here`;
-      $('bCta').textContent=n>0?`Redeem for ${money(redeemNet(n),0)}`:'Redeem'};
-    $('bAmt').oninput=upd;$('bMax').onclick=()=>{$('bAmt').value=Math.round(pos.tok);upd()};upd();
-    $('bCta').onclick=async()=>{const n=parseFloat($('bAmt').value)||0,p=S.vpos[v.id];
-      if(!(n>0))return toast('Enter an amount above zero.');
-
-      // Same gate as subscribe: never simulate a redemption on a chain-backed
-      // vault — ask for the wallet when the bundle is present.
-      if(!DEMO_MODE&&v.chainId&&!chainLive()){
-        const c=await chain();
-        if(c){
-          try{ await connectWallet(); }catch(e){ return toast(e.message) }
-          if(!chainLive())return;
-        }
-      }
-
-      // Chain-backed: burn real claim tokens for real USDC, holder-signed.
-      if(chainLive()&&v.chainId){
-        const st=await chainVault(v,{fresh:true});
-        if(st&&st.claimable){
-          const cta=$('bCta'),label=cta.textContent;
-          cta.disabled=true;cta.textContent='Confirm in your wallet…';
-          try{
-            const before=await chainPosition(v,{fresh:true});
-            const {position}=await window.MarcoChain.claim(v.chainId,n);
-            invalidateChain(v);
-            S.vpos[v.id]={sub:position.deposited,tok:position.shares,sh:0,
-              fee:feeFromChain(v,position.deposited,position.shares)};
-            const paid=position.redeemed-(before?.redeemed??0);
-            toast(`Redeemed ${Math.round(n).toLocaleString()} m${v.ticker} for ${money(paid)}`);
-            openVault(v.id);renderPortfolio();
-          }catch(e){
-            toast(`Redemption failed · ${e.message}`);
-            cta.disabled=false;cta.textContent=label;
-          }
-          return;
-        }
-        if(st)return toast(`Vault is ${st.phase} on-chain — redemption is not open.`);
-      }
-
-      if(!p||p.tok<=0)return toast('You don’t hold tokens in this vault.');
-      if(n>p.tok+1e-6)return toast('You don’t hold that many tokens.');
-      const out=redeemNet(n);p.tok-=n;S.cash+=out;
-      toast(`Redeemed ${Math.round(n).toLocaleString()} m${v.ticker} for ${money(out)}`);
-      openVault(v.id);renderPortfolio()};
-  }else{
-    box.innerHTML=`<div class="ct" style="margin-bottom:14px">Your Position</div>
-      <div class="row" style="padding-top:0"><span>Status</span><b>${st.cta}</b></div>
-      <div class="row"><span>Entry fee</span><b class="num">${(feeBpsOf(v)/100).toFixed(2)}% at deposit</b></div>
-      <div class="row"><span>Your tokens</span><b class="num">${qty(Math.round(pos.tok),0)} m${v.ticker}</b></div>
-      <div class="row"><span>Shares taken</span><b class="num">${pos.sh?pos.sh.toLocaleString():'—'}</b></div>
-      <div class="row"><span>You subscribed</span><b class="num">${money(pos.sub,0)}</b></div>
-      <div class="row tot"><span>Settlement</span><b style="font-size:13px">USDC · Ethereum</b></div>
-      <button class="cta" disabled>${st.cta}</button>
-      <div class="mini" style="margin-top:12px;line-height:1.5">${
-        v.status==='soon'?'Subscription opens closer to the deposit deadline.'
-        :v.status==='ipo'?'The security has listed. Use the election panel to take shares, or wait for cash redemption.'
-        :'Capital is committed and illiquid during this phase.'}</div>`;
-  }
-}
-function backToList(){$('vaultList').style.display='block';$('vaultDetail').style.display='none';
-  S.vault=null;renderVaults();scrollTo(0,0);
-  if(location.hash!=='#/preipo')history.replaceState(null,'','#/preipo')}
+/* every vault link in the platform — tape, pipeline, watchlist, portfolio,
+   agents — lands on that offering in the Pre-IPO app */
+function openVault(id){openEmbed('preipo',V(id)?id:'')}
 
 /* ════════ router ════════ */
-function go(page,keepVault){
+function go(page){
   S.page=page;
-  if(page==='preipo'&&!keepVault){$('vaultList').style.display='block';$('vaultDetail').style.display='none';S.vault=null}
   if(page!=='agents'&&S.agent)S.agent=null;
   document.querySelectorAll('.page').forEach(p=>p.classList.toggle('on',p.id==='p-'+page));
   document.querySelectorAll('.rbtn[data-nav]').forEach(b=>{
@@ -6518,26 +5617,26 @@ function go(page,keepVault){
   const av=$('avatar');
   if(av){av.classList.toggle('on',page==='settings');
     page==='settings'?av.setAttribute('aria-current','page'):av.removeAttribute('aria-current')}
-  const path=(page==='preipo'&&keepVault&&S.vault)?'#/preipo/'+S.vault.id:'#/'+page;
-  if(location.hash!==path)history.replaceState(null,'',path);
+  // an embedded page keeps its sub-route; the frame reports it via routeChanged
+  const path='#/'+page;
+  if(location.hash!==path&&!location.hash.startsWith(path+'/'))history.replaceState(null,'',path);
   renderTape();
   if(page==='markets')renderMarkets();
   if(page==='trade'){S.series=series(S.mkt.id,S.mkt.px,S.tf);setMode(S.mode)}
   if(page==='portfolio')renderPortfolio();
-  if(page==='preipo'&&!keepVault)renderVaults();
-  // Chain-backed vaults refresh in the background and re-render only if
-  // something actually moved, so the page paints immediately off cached data
-  // rather than waiting on RPC.
-  if(page==='preipo')syncChainVaults({fresh:true}).then(changed=>{
-    if(!changed||S.page!=='preipo')return;
-    S.vault?openVault(S.vault.id):renderVaults();
-    renderPortfolio();
+  if(EMBED_PAGES.includes(page))embedFrame(page);
+  // Chain-backed vaults refresh in the background, so the platform's own
+  // figures for them (tape, pipeline, portfolio) match the Pre-IPO app.
+  if(page==='markets'||page==='portfolio')syncChainVaults({fresh:true}).then(changed=>{
+    if(!changed)return;
+    if(S.page==='portfolio')renderPortfolio();
+    if(S.page==='markets')renderMarkets();
   });
   if(page==='agents'&&!S.agent){$('agentList').style.display='block';
     $('agentDetail').style.display='none';renderAgents()}
   if(page==='settings')renderSettings();
   if(S.wlOpen)renderWatch();
-  if(!keepVault)scrollTo(0,0);
+  scrollTo(0,0);
 }
 
 /* ════════ live feed ════════ */
@@ -6586,7 +5685,6 @@ async function feed(){
 document.querySelectorAll('.rbtn[data-nav]').forEach(b=>b.onclick=()=>go(b.dataset.nav));
 /* the mark is the way back to the top of the app, wherever you have got to */
 $('homeBtn').onclick=()=>{
-  if(S.vault)backToList();
   if(S.agent)agentsBack();
   go('markets');scrollTo(0,0);
 };
@@ -6632,7 +5730,8 @@ $('avatar').onclick=()=>go('settings');
 $('avatar').onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();go('settings')}};
 $('themeBtn').onclick=()=>{const d=document.documentElement.getAttribute('data-theme')==='dark';
   document.documentElement.setAttribute('data-theme',d?'light':'dark');
-  go(S.page,!!S.vault);if(S.page==='trade'&&S.mode==='adv')loadTV()};
+  eachEmbed(api=>api.theme?.(shellTheme()));
+  go(S.page);if(S.page==='trade'&&S.mode==='adv')loadTV()};
 /* wallet connection — a real Solana wallet when marco-chain.js is present,
    otherwise a labelled simulation so the page still demonstrates the flow */
 const DEMO_WALLET='0x71a3…4d02';
@@ -6643,48 +5742,50 @@ function renderWallet(){
   b.setAttribute('aria-label',S.wallet?('Wallet connected, '+S.wallet):'Connect wallet');
   b.setAttribute('aria-pressed',String(!!S.wallet));
 }
-$('walletBtn').onclick=async()=>{
-  if(S.wallet){
+async function setWallet(on,{fromFrame=false}={}){
+  if(!on){
+    if(!S.wallet)return;
+    const was=realWallet();
     await disconnectWallet();
     S.wallet=null;S.walletKind=null;
-    renderWallet();go(S.page,!!S.vault);
+    renderWallet();go(S.page);
+    if(was&&!fromFrame)eachEmbed(api=>api.wallet?.(false));
     return toast('Wallet disconnected');
   }
   try{
     const w=await connectWallet();
     S.wallet=w.short;S.walletKind=w.kind;
-    renderWallet();go(S.page,!!S.vault);
+    renderWallet();go(S.page);
+    if(!fromFrame)eachEmbed(api=>api.wallet?.(true));
     // Naming the burner explicitly matters: a key in localStorage must never
     // be mistaken for the user's real wallet.
     toast(w.kind==='dev'
       ?`Dev wallet · ${w.short} — burner key, localnet only`
       :`Wallet connected · ${w.short}`);
   }catch(e){
+    // A frame already holds the real wallet; it said so and this is the echo.
+    if(fromFrame)return;
     // No chain bundle is the ordinary case for a single-file page. Fall back
     // to the simulation rather than dead-ending, but say which one this is.
     S.wallet=DEMO_WALLET;S.walletKind='simulated';
-    renderWallet();go(S.page,!!S.vault);
+    renderWallet();go(S.page);
     toast(`Simulated wallet · ${DEMO_WALLET} — ${e.message}`);
   }
-};
+}
+$('walletBtn').onclick=()=>setWallet(!S.wallet);
 renderWallet();
 addEventListener('keydown',e=>{
   if(e.key==='Escape'){closeTicket();closePick()}
   if(e.key==='/'&&S.page==='markets'&&document.activeElement!==$('mktSearch')){e.preventDefault();$('mktSearch').focus()}});
 addEventListener('resize',()=>{
-  if(S.vault)return drawVaultCharts(S.vault);
+  if(EMBED_PAGES.includes(S.page))return;                        // the frame lays itself out
   if(S.page==='agents'&&S.agent)return openAgent(S.agent.id);   // canvases need a redraw
   go(S.page)});
-addEventListener('resize',()=>{if(S.page!=='preipo'||S.vault)return;
-  if($('secCh'))drawRadar($('secCh'),sectorCounts());
-  const f=featuredVault();
-  if(f&&$('featCh'))drawFill($('featCh'),f,{capsule:true})});
 addEventListener('hashchange',()=>{
   const seg=(location.hash||'#/markets').replace('#/','').split('/');
   const p=seg[0];
-  if(!['markets','trade','portfolio','preipo','agents','settings'].includes(p))return;
-  if(p==='preipo'&&seg[1]){if(V(seg[1])&&(!S.vault||S.vault.id!==seg[1]))openVault(seg[1]);return}
-  if(p==='preipo'&&S.vault)return backToList();
+  if(!['markets','trade','portfolio','agents','settings',...EMBED_PAGES].includes(p))return;
+  if(EMBED_PAGES.includes(p))return openEmbed(p,seg.slice(1).join('/'));
   if(p==='agents'&&seg[1]){if(!S.agent||S.agent.id!==seg[1])openAgent(seg[1]);return}
   if(p==='settings'&&seg[1]){if(S.page!=='settings'){S.setTab=seg[1];go('settings')}
     else setPanel(seg[1]);return}
@@ -6692,7 +5793,6 @@ addEventListener('hashchange',()=>{
   if(p!==S.page)go(p)});
 setInterval(tickCountdowns,1000);
 setInterval(rotateFeed,5000);
-setInterval(tickFlowUI,3000);
 $('editBtn').onclick=()=>setEdit(!editMode);
 $('ltClose').onclick=closeTemplates;
 $('pickScrim').addEventListener('click',closeLayoutMenu);
@@ -6703,14 +5803,6 @@ $('agOverlay').addEventListener('click',e=>{if(e.target===$('agOverlay'))closeBu
 addEventListener('keydown',e=>{if(e.key==='Escape'&&$('agOverlay').classList.contains('on'))closeBuilder()});
 $('ltOverlay').addEventListener('click',e=>{if(e.target===$('ltOverlay'))closeTemplates()});
 addEventListener('keydown',e=>{if(e.key==='Escape'&&$('ltOverlay').classList.contains('on'))closeTemplates()});
-$('pickScrim').addEventListener('click',()=>{if($('featMenu').classList.contains('on'))closeFeatPick()});
-$('featQ').oninput=()=>{featHi=0;renderFeatPick()};
-$('featQ').onkeydown=e=>{
-  const rows=featRows();
-  if(e.key==='ArrowDown'){e.preventDefault();featHi=Math.min(rows.length-1,featHi+1);renderFeatPick()}
-  else if(e.key==='ArrowUp'){e.preventDefault();featHi=Math.max(0,featHi-1);renderFeatPick()}
-  else if(e.key==='Enter'){e.preventDefault();if(rows[featHi])choose(rows[featHi].id)}
-  else if(e.key==='Escape'){closeFeatPick();if(featAnchor)featAnchor.focus()}};
 setInterval(tickBook,2000);
 
 
@@ -7295,12 +6387,12 @@ try{const L=localStorage.getItem('marco.layout');if(L)S.layout=L;
 const startSeg=(location.hash||'#/markets').replace('#/','').split('/');
 const start=startSeg[0];
 setSide('buy');
-go(['markets','trade','portfolio','preipo','agents','settings'].includes(start)?start:'markets');
-if(start==='preipo'&&startSeg[1]&&V(startSeg[1]))openVault(startSeg[1]);
+if(EMBED_PAGES.includes(start))openEmbed(start,startSeg.slice(1).join('/'));
+else go(['markets','trade','portfolio','agents','settings'].includes(start)?start:'markets');
 if(start==='agents'&&startSeg[1])openAgent(startSeg[1]);
 if(start==='settings'&&startSeg[1])setPanel(startSeg[1]);
 feed();setInterval(feed,20000);
-window.__marco={S,MARKETS,VAULTS,openVault,openMarket,go,loadTV,showFallback,renderMarkets,setWL,setMode,
+window.__marco={S,MARKETS,VAULTS,openVault,openEmbed,embedApi,openMarket,go,loadTV,showFallback,renderMarkets,setWL,setMode,
   renderAgents,openAgent,openBuilder,loadAgents,renderSettings,loadPrefs};
 })();
 </script>
@@ -7318,10 +6410,11 @@ window.__marco={S,MARKETS,VAULTS,openVault,openMarket,go,loadTV,showFallback,ren
 <script>
 /* ════════ demo director — dormant unless the page is opened with ?demo=1 ════════
    A scripted, self-playing product tour: the markets board and how it is
-   configured, the discover table, the standard and advanced trade views, and a
-   live pre-IPO subscription. It drives the real UI through window.__marco and
-   real click events, so what the video shows is the product, not a mock — the
-   order and the subscription genuinely execute. Nothing here runs, and nothing
+   configured, the discover table, the standard and advanced trade views, a
+   pre-IPO offering read live off devnet, and a levered valuation-futures trade.
+   It drives the real UI through window.__marco and real click events (reaching
+   into the Pre-IPO and Futures frames), so what the video shows is the product,
+   not a mock — the order and the futures position genuinely execute. Nothing here runs, and nothing
    is injected into the DOM, on a normal page load.
 
    ?demo=1            play the tour
@@ -7527,10 +6620,46 @@ async function typeIn(el,text,per=68){
   }
 }
 
-/* Select a vault detail tab, bring its section up, and caption it. */
+/* ── embedded products ── Pre-IPO and Futures are apps in frames, so these
+   reach into the frame: its elements, its scroll, and the cursor's position
+   translated into the shell's coordinates. */
+const frameOf=page=>document.querySelector(`#emb-${page} iframe`);
+const fq=(page,sel)=>frameOf(page)?.contentDocument.querySelector(sel);
+async function frameReady(page,ms=10000){
+  const t=performance.now();
+  while(!M().embedApi[page]&&performance.now()-t<ms)await wait(100);
+  await wait(700);
+}
+function fscrollTween(page,to,ms){
+  const w=frameOf(page).contentWindow;
+  const from=w.scrollY, max=w.document.body.scrollHeight-w.innerHeight;
+  const y=Math.max(0,Math.min(to,max));
+  return tween(ms,p=>w.scrollTo(0,from+(y-from)*p));
+}
+async function ftap(page,el,{travel=620,settle=340}={}){
+  if(!el)return;
+  const w=frameOf(page).contentWindow;
+  let r=el.getBoundingClientRect();
+  if(r.bottom<90||r.top>w.innerHeight-90){
+    await fscrollTween(page,w.scrollY+r.top-w.innerHeight*0.4,800);
+    r=el.getBoundingClientRect();
+  }
+  const f=box(frameOf(page));
+  await moveTo(f.left+r.left+r.width/2,f.top+r.top+r.height/2,travel);
+  await wait(120);ripple();el.click();
+  await wait(settle);
+}
+async function ftype(page,el,text,per=68){
+  if(!el)return;
+  el.focus();el.value='';
+  for(const ch of text){el.value+=ch;el.dispatchEvent(new Event('input',{bubbles:true}));await wait(per)}
+}
+
+/* Select an offering tab in the Pre-IPO app, bring it up, and caption it. */
 async function vaultTab(key,t,s,hold=2200,hi=false){
-  await tap(document.querySelector(`#vnav [data-s="${key}"]`),{travel:700,settle:600});
-  await scrollToEl(document.getElementById('s-'+key),1000,140);
+  await ftap('preipo',fq('preipo',`#vnav [data-s="${key}"]`),{travel:700,settle:600});
+  const sec=fq('preipo','#s-'+key),w=frameOf('preipo').contentWindow;
+  if(sec)await fscrollTween('preipo',w.scrollY+sec.getBoundingClientRect().top-140,1000);
   await say(t,s,{hi});
   await wait(hold);
   await sayOff();
@@ -7698,80 +6827,66 @@ async function run(){
   m.setMode('std');
   await wait(800);
 
-  /* ── 7 · pre-IPO ── the part the whole platform is really for ── */
+  /* ── 7 · pre-IPO ── the part the whole platform is really for. It is its
+     own app, framed by the platform, reading live vault state off devnet. ── */
   mark('pre-ipo');
-  await tap(nav('preipo'),{travel:860,settle:1100});
-  scrollTo(0,0);
+  await tap(nav('preipo'),{travel:860,settle:600});
+  await frameReady('preipo');
   await say('Access the unreachable','Pre-IPO vaults — private equity before it lists');
   await wait(2700);
   await sayOff();
 
-  await say('Full visibility on every offering','Valuation, funding status, subscription, countdown');
-  await scrollTween(680,2000);
-  await wait(2400);
+  await say('Every offering, read from chain','Valuation, vault cap, subscriptions and the deadline the program enforces');
+  await ftap('preipo',fq('preipo','#next'),{travel:760,settle:1500});
+  await ftap('preipo',fq('preipo','#prev'),{travel:500,settle:1300});
   await sayOff();
-
-  /* Choose the vault to walk through at run time. The seed data moves — a
-     vault that is open with room this month can be full the next — and a
-     hardcoded id turns the subscribe beat into a "fully subscribed" toast
-     without anything else in the tour looking wrong. Take the open vault with
-     the most room left. */
-  const vault=m.VAULTS
-    .filter(v=>v.status==='open'&&v.vaultSize-v.raisedUsd>1000)
-    .sort((a,b)=>(b.vaultSize-b.raisedUsd)-(a.vaultSize-a.raisedUsd))[0];
-  if(!vault){console.warn('[demo] no open vault has room — subscribe beat will be skipped')}
-  const target=vault||m.VAULTS[0];
 
   mark('vault detail');
-  await tap(document.querySelector(`#vgrid [data-v="${target.id}"]`),{travel:760,settle:1500});
-  scrollTo(0,0);
-  await say('A dedicated intelligence hub per vault','Valuation, capacity, subscription, closing countdown');
-  await wait(3000);
-  await sayOff();
-
-  await scrollTween(640,1900);
-  await say('Deep insights and comparative benchmarks');
-  await wait(2700);
+  await ftap('preipo',fq('preipo','#track [data-v="moon"]'),{travel:760,settle:1500});
+  await say('A dedicated hub per vault','Valuation, capacity, subscription, closing countdown');
+  await wait(2800);
   await sayOff();
 
   /* Left to right, in the order the tabs actually sit on the page — jumping
      around reads as a mistake even when every stop is worth showing. */
-  await vaultTab('timeline','Lifecycle','Subscription, allocation, listing, redemption');
+  await vaultTab('how','Lifecycle','Subscription, allocation, listing, redemption');
   /* lifted so the caption does not sit on top of the addresses it cites */
-  await vaultTab('terms','The full terms',
-    'Instrument, redemption basis, fees, and the on-chain vault addresses',2600,true);
-  await vaultTab('financials','Financials','Revenue, gross profit and margin, with the sources stated');
-  await vaultTab('outlook','Listing scenarios','What a vault token is worth at each outcome');
+  await vaultTab('terms','The full terms','Read from the vault account on chain, not restated',2600,true);
+  await vaultTab('numbers','Financials','Revenue and comparables, with the sources stated');
   await vaultTab('risk','Payoff and risk factors','Stated plainly, before you commit');
-  await vaultTab('news','News','Coverage on the company',1900);
-  await vaultTab('activity','Activity','Inflows by day, and what has been committed',1900);
+  await vaultTab('activity','Activity','Every subscription, linked to its transaction',1900);
 
-  /* The subscribe panel is sticky, so there is no need to leave the tab you
-     are on — just come back up to it. Size the ticket against the room that is
-     actually left, so the deposit clears instead of being capped to nothing. */
-  if(vault){
-    mark('subscribe');
-    await scrollTween(0,1100);
-    const room=vault.vaultSize-vault.raisedUsd;
-    const amt=Math.max(100,Math.min(25000,Math.floor(room*.4/1000)*1000));
-    await say('Seamless USDC subscriptions','Your exact entry fee and tokens, quoted before you confirm');
-    await typeIn($('bAmt'),String(amt),95);
-    await wait(2400);
-    await sayOff();
+  /* Quote a subscription without sending it: in the tour there is no wallet,
+     and the vault is a real one — the quote is the program's own fee maths. */
+  mark('subscribe');
+  await fscrollTween('preipo',0,1100);
+  await say('Seamless USDC subscriptions','Your fee and claim tokens, quoted before you sign');
+  await ftype('preipo',fq('preipo','#bAmt'),'5000',95);
+  await wait(2600);
+  await sayOff();
 
-    /* short settle so the caption lands while the fill toast is still up —
-       the toast clears itself 3.2s after the click */
-    await tap($('bCta'),{travel:600,settle:1100});
-    mark('subscribed');
-    await say('Committed','Your position and vault tokens land immediately',{hi:true});
-    await wait(2800);
-    await sayOff();
+  /* ── 7b · valuation futures ── the same company, long or short, levered ── */
+  mark('futures');
+  await tap(nav('futures'),{travel:760,settle:600});
+  await frameReady('futures');
+  await say('Trade the valuation itself','Long or short Moonshot AI’s valuation, settled at the IPO');
+  await wait(2600);
+  await sayOff();
+
+  await say('Up to 10× on isolated margin','The mark is an 8-hour EMA of the book, anchored to verified rounds');
+  await ftype('futures',fq('futures','#amt'),'2500',90);
+  const lev=fq('futures','#levRng');
+  if(lev){
+    const w=frameOf('futures').contentWindow;
+    await tween(1100,p=>{lev.value=3+2*p;lev.dispatchEvent(new w.Event('input',{bubbles:true}))});
   }
-
-  await tap(document.querySelector('#vnav [data-s="position"]'),{travel:760,settle:800});
-  await scrollToEl(document.getElementById('s-position'),1200,150);
-  await say('Vault tokens redeem on net IPO proceeds','Not on the listed share price');
-  await wait(3200);
+  await wait(1200);
+  await ftap('futures',fq('futures','#cta'),{travel:700,settle:1300});
+  mark('futures position');
+  await sayOff();
+  await say('Position open','Size, margin, liquidation price and live P&L',{hi:true});
+  await ftap('futures',fq('futures','#posWrap'),{travel:600,settle:300});
+  await wait(2800);
   await sayOff();
 
   /* ── 8 · close ── the mark is the way back out of a vault ── */

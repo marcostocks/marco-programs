@@ -1,8 +1,44 @@
 # Marco — APAC equity access on Solana
 
-Hong Kong–listed shares and pre-IPO allocations, bought with stablecoins and
-backed 1:1 by real shares in regulated custody. Two Anchor programs, both live
-on devnet and both exercised through their full lifecycle on chain.
+Hong Kong–listed shares, pre-IPO allocations and valuation futures on private
+companies — one app, bought with stablecoins. Three Anchor programs, all
+deployed on devnet; spot and pre-IPO exercised through their full lifecycle on
+chain.
+
+**[Open the app →](https://marcostocks.github.io/marco-programs/)**
+
+## The app
+
+`index.html` is the whole platform. One rail, one wallet, one theme across
+three products:
+
+| | | |
+|---|---|---|
+| **Markets · Trade · Portfolio** | Live HK/China tech and crypto markets, a spot order ticket, portfolio and research agents. Tencent (`0700.HK`) trades against the `marco_spot` program; the rest is illustrative. | `#/markets` |
+| **Pre-IPO** | Subscription vaults for Moonshot AI and ByteDance, read live from `marco_vault` on devnet — cap, commitments, deadline and fee timing come from the vault account, and subscribing is a holder-signed `deposit`. | `#/preipo` · `#/preipo/moon` |
+| **Futures** | A leveraged long/short terminal on Moonshot AI's valuation, cash-settled at the IPO. Runs on a client-side mirror of the `marco_futures` vAMM maths; see [Scope](#scope). | `#/futures` · `#/futures/docs` |
+
+Pre-IPO and Futures are complete apps of their own (`apps/preipo/`,
+`apps/futures/`), framed by the platform. The platform exposes
+`window.MarcoShell`: an embedded app registers with it, takes the shell's
+theme, borrows its wallet provider (so Phantom approves once, for all three),
+and reports its own route so a deep link like `#/preipo/byte` can be shared.
+Each still runs standalone when opened directly.
+
+Connect Phantom set to **Devnet**. Subscribing needs devnet SOL and the test
+USDC mint `C7e4CP…G9ef`; without a wallet every chain-backed figure is still
+read live, and nothing is ever simulated silently in its place.
+
+### Run it locally
+
+```bash
+npm install
+npm run build:chain   # optional — marco-chain.js is committed; rebuild after changing src/chain/
+npm run build         # index.html + apps/preipo + apps/futures
+npm run serve         # http://localhost:8099
+```
+
+Wallets cannot inject into `file://` pages, so serve over HTTP to connect one.
 
 **[Read the on-chain proof →](https://marcostocks.github.io/marco-programs/docs/)** — both lifecycles walked end to end, every figure linked to the confirmed transaction it was read from.
 
@@ -16,6 +52,7 @@ stablecoins back when it closes.
 |---|---|---|
 | **`marco_spot`** ([`spot/`](spot)) | Buy and sell HK-listed shares with USDC. Each position token is backed 1:1 by a share held in segregated custody. 15 instructions. | [`44PTF8po…Ggn9e`](https://explorer.solana.com/address/44PTF8po9JW5KK5VVH295XRFfNm1x9KuwcAVsvYGgn9e?cluster=devnet) |
 | **`marco_vault`** ([`pre-ipo/`](pre-ipo)) | Pool subscriptions into an IPO allocation. Depositors hold a tradeable claim on the vault's net proceeds. 24 instructions. | [`CgJnDJHj…PMC8q`](https://explorer.solana.com/address/CgJnDJHjhkMgrkaky3Dp9dD89NzXRMP287bqmgCPMC8q?cluster=devnet) |
+| **`marco_futures`** ([`futures/`](futures)) | Dated valuation futures on private companies: isolated margin, a vAMM mark, liquidation, an insurance fund, and settlement at the IPO. 13 instructions. | [`GCW6Gt86…3ztkW`](https://explorer.solana.com/address/GCW6Gt86tSVMqEwz6GkVNDWuzivDXCG2bzjp4AS3ztkW?cluster=devnet) |
 
 ## How it works
 
@@ -97,6 +134,7 @@ nothing here touches devnet.
 ```bash
 cd spot && npm install && anchor test      # 21 tests
 cd pre-ipo && npm install && anchor test   # 19 tests
+cd futures && npm install && anchor test   # 6 tests
 ```
 
 ## Security
@@ -132,8 +170,12 @@ round trips on each; order entry signed by an external wallet through the
 production interface; operator instructions driven by a service rather than by
 hand; balances reconcile exactly across every step shown above.
 
-**Not yet** — devnet test USDC, so no real securities, funds or custody are
-involved. Custody attestations are synthetic: no custodian has signed anything.
+**Not yet** — the Futures screen trades against a client-side mirror of the
+`marco_futures` maths rather than the deployed program; the program and its
+tests are in `futures/`, the browser wiring is not. Unlike the other two, that
+program holds trader margin and is the counterparty, so it carries an
+insurance fund and liquidation. Devnet test USDC throughout, so no real
+securities, funds or custody are involved. Custody attestations are synthetic: no custodian has signed anything.
 No licensed broker, custodian or FX counterparty is integrated, and the
 programs are unaudited. Operator keys are local files rather than an HSM or
 multisig. This is a technical proof of concept, not an offer or solicitation.
@@ -141,8 +183,20 @@ multisig. This is a technical proof of concept, not an offer or solicitation.
 ## Layout
 
 ```
-spot/     Anchor workspace — programs/marco-spot,  tests/, scripts/
-pre-ipo/  Anchor workspace — programs/marco-vault, tests/, scripts/
+index.html         the platform — built, single self-contained file
+marco-chain.js     the Solana client bundle it loads (and apps/preipo shares)
+apps/preipo/       the pre-IPO vault app — built
+apps/futures/      the valuation-futures terminal — built
+
+src/               platform source: parts/ concatenated by build.sh, chain/ → marco-chain.js
+launch/src/        pre-IPO app source (build.mjs, parts/, art/)
+valuationfutures/  futures app source
+shared/marco-artifacts/addresses.json   the only place an address comes from
+
+spot/     Anchor workspace — programs/marco-spot,    tests/, scripts/
+pre-ipo/  Anchor workspace — programs/marco-vault,   tests/, scripts/
+futures/  Anchor workspace — programs/marco-futures, tests/, scripts/
+docs/     the on-chain proof page
 ```
 
 The program inside `pre-ipo/` is named `marco_vault`, which is the name it is
