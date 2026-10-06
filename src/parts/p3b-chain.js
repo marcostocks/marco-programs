@@ -25,7 +25,12 @@ function loadChain(){
   chainPromise=new Promise(res=>{
     const s=document.createElement('script');
     s.src=CHAIN_SRC;
-    s.onload=()=>res(window.MarcoChain||null);
+    s.onload=()=>{
+      // A chain to trade on means the seeded demo book has no business on
+      // screen: until a wallet connects, the book is empty, not someone's.
+      if(window.MarcoChain&&!chainLive())emptyBook();
+      res(window.MarcoChain||null);
+    };
     // Absent bundle is an expected state, not an error: the page is designed
     // to be opened as a single file with nothing beside it.
     s.onerror=()=>res(null);
@@ -136,16 +141,19 @@ async function syncChainVaults(opts){
    its USDC, spot positions are its position tokens across every market, and
    vault positions are its claim tokens. Swapping the book rather than teaching
    each view about the chain means the portfolio, the hero, the watchlist and
-   the ticket all read real balances unchanged. The demo book is kept aside and
-   comes back on disconnect. */
-let demoBook=null;
+   the ticket all read real balances unchanged. With no wallet the book is
+   empty — the seeded demo book only survives where there is no chain at all
+   (opened off disk) or in the recorded tour (?demo=1). */
+function emptyBook(){
+  S.cash=0;S.pos={};S.vpos={};S.chainPos={};S.chainUsdc=null;
+  if(typeof go==='function'&&S.page)go(S.page);
+}
 async function loadChainBook(){
   if(!chainLive())return false;
   const c=window.MarcoChain;
   const [usdc,spot]=await Promise.all([
     c.getUsdcBalance().catch(()=>null),c.getSpotPortfolio().catch(()=>null)]);
   if(usdc==null||spot==null)return false;
-  if(!demoBook)demoBook={cash:S.cash,pos:S.pos,vpos:S.vpos};
   S.cash=usdc;S.chainUsdc=usdc;
   S.pos={};
   MARKETS.forEach(m=>{const h=m.chainTicker&&spot[m.chainTicker];
@@ -153,11 +161,6 @@ async function loadChainBook(){
   S.vpos={};
   await syncChainVaults({fresh:true}).catch(()=>{});
   return true;
-}
-function restoreDemoBook(){
-  if(!demoBook)return;
-  S.cash=demoBook.cash;S.pos=demoBook.pos;S.vpos=demoBook.vpos;demoBook=null;
-  S.chainPos={};S.chainUsdc=null;
 }
 
 /* ---- wallet ------------------------------------------------------------- */

@@ -86,18 +86,20 @@ button{background:none;border:none;cursor:pointer}
 .wdot.on{background:var(--up)}
 main{min-width:0;display:flex;flex-direction:column}
 
-/* banner */
-.banner{font-size:12px;color:var(--ink-2);background:var(--surface);border-bottom:1px solid var(--line);
-  padding:7px 26px;display:flex;align-items:center;gap:8px}
-.banner b{color:var(--ink);font-weight:600}
-.bdot{width:7px;height:7px;border-radius:50%;flex:0 0 auto;background:var(--brand)}
-.bdot.live{background:var(--up)}
+/* page title row — the platform's Markets title, sized for this page's --z
+   (.92 against the platform's .87) so the two render at the same visual size */
+.fhead{display:flex;align-items:flex-end;justify-content:space-between;gap:16px 24px;flex-wrap:wrap;
+  padding:26px 26px 0;margin-bottom:6px}   /* + .pad's 20px top = the platform's 28px gap, at this --z */
+.fh1{font-size:32px;font-weight:600;letter-spacing:-.028em;line-height:1.1}
+.fheadR{display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+.chainLink{font-size:13px;color:var(--ink-2);text-underline-offset:3px}
+.chainLink:hover{color:var(--ink)}
 /* Trade / How it works — only inside the platform, where the rail is the platform's */
-.btabs{display:none;margin-left:auto;gap:2px;background:var(--surface);border-radius:8px;padding:2px}
-.btabs button{font:inherit;font-size:12px;color:var(--ink-2);background:none;border:0;border-radius:6px;
+.btabs{display:none;gap:2px;background:var(--surface);border-radius:8px;padding:2px}
+.btabs button{font:inherit;font-size:13px;color:var(--ink-2);background:none;border:0;border-radius:6px;
   padding:3px 10px;cursor:pointer}
 .btabs button.on{background:var(--surface-2);color:var(--ink);font-weight:600}
-.btabsLink{display:none;font-size:12px;color:var(--ink-2);text-underline-offset:3px}
+.btabsLink{display:none;font-size:13px;color:var(--ink-2);text-underline-offset:3px}
 .btabsLink:hover{color:var(--ink)}
 
 /* ── inside the Marco platform ── the shell's rail replaces this one, and the
@@ -370,15 +372,17 @@ td{padding:12px 14px 12px 0;border-top:1px solid var(--line);font-size:13px}
   </nav>
 
   <main>
-    <div class="banner">
-      <span class="bdot" id="bdot"></span>
-      <span id="bmsg"><b>Simulated</b> — illustrative at-scale market · no chain bundle detected.</span>
-      <span class="btabs" role="tablist" aria-label="View">
-        <button data-view="trade" class="on" role="tab">Trade</button>
-        <button data-view="docs" role="tab">How it works</button></span>
-      <a class="btabsLink" href="#" id="vaultLink">Moonshot pre-IPO vault →</a>
-    </div>
     <div class="tape" id="tape"><div class="tapeRun" id="tapeRun"></div></div>
+    <div class="fhead">
+      <h1 class="fh1">Valuation Futures</h1>
+      <div class="fheadR">
+        <a class="chainLink" id="chainLink" target="_blank" rel="noopener" hidden></a>
+        <a class="btabsLink" href="#" id="vaultLink">Moonshot pre-IPO vault →</a>
+        <span class="btabs" role="tablist" aria-label="View">
+          <button data-view="trade" class="on" role="tab">Trade</button>
+          <button data-view="docs" role="tab">How it works</button></span>
+      </div>
+    </div>
 
     <div class="pad" id="viewTrade">
       <div class="row1">
@@ -726,12 +730,12 @@ async function syncChain(){
   $('wdot').classList.toggle('on',W.connected);
   return true;
 }
+/* Live, the title row links the chain: your last transaction once there is
+   one, the market account before that. */
 function liveBanner(){
-  $('bdot').className='bdot live';
-  $('bmsg').innerHTML='<b>Live on devnet</b> — trading the <a href="'+EXPLORER('address',MKT.chainAddr)
-    +'" target="_blank" rel="noopener">marco-futures market</a>'
-    +(LAST_TX?' · last tx <a href="'+EXPLORER('tx',LAST_TX)+'" target="_blank" rel="noopener">'
-      +LAST_TX.slice(0,4)+'…'+LAST_TX.slice(-4)+' ↗</a>':'');
+  const a=$('chainLink'); a.hidden=false;
+  if(LAST_TX){a.href=EXPLORER('tx',LAST_TX);a.textContent='Last tx '+LAST_TX.slice(0,4)+'…'+LAST_TX.slice(-4)+' ↗';}
+  else{a.href=EXPLORER('address',MKT.chainAddr);a.textContent='Devnet market ↗';}
 }
 async function liveTx(label,run){
   const c=$('cta'), was=c.innerHTML; c.disabled=true; c.textContent='Confirm in your wallet…';
@@ -888,7 +892,8 @@ function showEventPopover(i){
 
 /* ══════════ header + panels ══════════ */
 function renderHeader(){
-  const p=mark(), chg=(p-MKT.anchor)/MKT.anchor*100;
+  const p=mark(), raw=(p-MKT.anchor)/MKT.anchor*100;
+  const chg=Math.abs(raw)<0.005?0:raw;   // vAMM rounding dust reads as flat, not as a red −0.00%
   const el=$('px'); el.textContent=bil(p);
   if(prevMark&&p!==prevMark){el.classList.remove('f-up','f-dn');void el.offsetWidth;el.classList.add(p>prevMark?'f-up':'f-dn');setTimeout(()=>el.classList.remove('f-up','f-dn'),600);}
   const pl=$('dPill'); pl.className='pill '+dir(chg); pl.textContent=pct(chg);

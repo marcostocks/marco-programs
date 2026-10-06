@@ -10,6 +10,7 @@ else go(['markets','trade','portfolio','agents','settings'].includes(start)?star
 if(start==='agents'&&startSeg[1])openAgent(startSeg[1]);
 if(start==='settings'&&startSeg[1])setPanel(startSeg[1]);
 feed();setInterval(feed,20000);
+chain();   // load the chain client up front, whatever page we open on — it decides the book
 window.__marco={S,MARKETS,VAULTS,openVault,openEmbed,embedApi,openMarket,go,loadTV,showFallback,renderMarkets,setWL,setMode,
   renderAgents,openAgent,openBuilder,loadAgents,renderSettings,loadPrefs};
 })();

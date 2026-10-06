@@ -225,7 +225,7 @@ async function setWallet(on,{fromFrame=false}={}){
     const was=realWallet();
     await disconnectWallet();
     S.wallet=null;S.walletKind=null;
-    restoreDemoBook();
+    if(was)emptyBook();
     renderWallet();go(S.page);
     if(was&&!fromFrame)eachEmbed(api=>api.wallet?.(false));
     return toast('Wallet disconnected');
