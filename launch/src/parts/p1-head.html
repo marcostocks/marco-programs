@@ -266,6 +266,10 @@ html.embedded .brandMark,html.embedded #themeBtn,html.embedded #walletBtn{displa
 .landBg::after{content:'';position:absolute;inset:0;background:var(--land-scrim)}
 body[data-view="vault"] .landBg{display:none}
 @media(max-width:640px){.landStage{padding:22px 0 20px}}
+/* The page's title, above the capsules — the platform's page-title scale. */
+.landTitle{text-align:center;font-size:34px;font-weight:600;letter-spacing:-.028em;
+  line-height:1.1;color:var(--ink);margin:0 0 26px;padding:0 18px}
+@media(max-width:640px){.landTitle{font-size:28px;margin-bottom:16px}}
 
 /* Glass, but only slightly: the fill stays near-opaque so the dense figures on
    it never have to compete with the artwork, and the blur does the rest. A
