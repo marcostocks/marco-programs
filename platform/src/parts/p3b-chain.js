@@ -14,7 +14,7 @@
    the user is told which they are looking at rather than left to guess.
    ═══════════════════════════════════════════════════════════════════════════ */
 
-const CHAIN_SRC = 'marco-chain.js';   // DEMO_MODE is defined in p3-data.js
+const CHAIN_SRC = 'platform/marco-chain.js';   // beside the built bundle; DEMO_MODE is defined in p3-data.js
 
 let chainPromise = null;
 

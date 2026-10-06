@@ -9,10 +9,10 @@
 const fs = require('fs');
 const path = require('path');
 
-// Sources live beside this script in src/; the built page is the one file
-// that stays in the repo root, so OUT deliberately climbs out of src/.
+// Sources live beside this script in platform/src/; the built page is the one
+// file at the repo root, so OUT climbs out of platform/.
 const DIR = __dirname;
-const ROOT = path.join(DIR, '..');
+const ROOT = path.join(DIR, '..', '..');
 const SRC = path.join(DIR, 'index.src.html');
 const OUT = path.join(ROOT, 'index.html');
 const FONT_DIR = path.join(DIR, 'fonts');

@@ -1,4 +1,4 @@
-// Bundles src/chain/ into marco-chain.js beside index.html.
+// Bundles platform/src/chain/ into platform/marco-chain.js, which index.html loads.
 //
 //   node src/build-chain.js
 //

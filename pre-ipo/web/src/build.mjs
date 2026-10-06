@@ -1,18 +1,18 @@
 /**
  * Build the Marco launch page (Moonshot AI + ByteDance).
  *
- *   node launch/src/build.mjs
+ *   node pre-ipo/web/src/build.mjs
  *
  * Concatenates parts/, inlines the four Open Sauce Sans weights as base64
  * @font-face data URIs, substitutes the cluster addresses, and writes
  * ../index.html. The chain bundle is copied in beside it so moonshot/ is a
  * folder you can deploy on its own.
  *
- *   node launch/src/build.mjs --out apps/preipo --chain ../../marco-chain.js
+ *   node pre-ipo/web/src/build.mjs --out pre-ipo/web --chain ../../platform/marco-chain.js
  *
- * builds the same page into the platform instead (see src/build-apps.mjs):
- * --out is relative to the repo root, and --chain is the bundle's path relative
- * to the page — given one, the bundle is shared rather than copied in.
+ * is how the platform builds it (platform/src/build-apps.mjs): --out is relative
+ * to the repo root, and --chain is the bundle's path relative to the page —
+ * given one, the bundle is shared rather than copied in.
  */
 import { readFileSync, writeFileSync, copyFileSync, existsSync, statSync,
   readdirSync, mkdirSync, rmSync } from 'fs';
@@ -20,9 +20,10 @@ import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
-const ROOT = join(HERE, '..', '..');    // repo root
+const ROOT = join(HERE, '..', '..', '..');    // repo root
+const PLATFORM = join(ROOT, 'platform');
 const arg = (name) => { const i = process.argv.indexOf(name); return i > 0 ? process.argv[i + 1] : null; };
-const SITE = arg('--out') ? join(ROOT, arg('--out')) : join(HERE, '..');   // launch/ by default
+const SITE = arg('--out') ? join(ROOT, arg('--out')) : join(HERE, '..');   // pre-ipo/web/ by default
 const CHAIN_SRC = arg('--chain') || 'marco-chain.js';
 mkdirSync(SITE, { recursive: true });
 
@@ -39,11 +40,11 @@ const PARTS = [
 // they end up base64'd inside the output either way, so the built page stays a
 // single self-contained file regardless of where the sources live.
 const WEIGHTS = [300, 500, 600, 700];
-const FONT_DIR = join(ROOT, 'src', 'fonts');
+const FONT_DIR = join(PLATFORM, 'src', 'fonts');
 
 // The only place an address is allowed to come from. Everything downstream —
 // this page and marco-chain.js both — is built against this one file.
-const ADDRESSES = join(ROOT, 'shared', 'marco-artifacts', 'addresses.json');
+const ADDRESSES = join(PLATFORM, 'shared', 'marco-artifacts', 'addresses.json');
 
 if (!existsSync(ADDRESSES)) {
   console.error(`missing ${ADDRESSES}\nrun 'sh scripts/localnet.sh' or the devnet setup first`);
@@ -212,7 +213,7 @@ writeFileSync(out, html);
 // The page loads the bundle by relative path, so it has to sit in this folder.
 // Its absence is not fatal: the page falls back to the labelled simulation, and
 // that is exactly the state a build without `npm run build:chain` should produce.
-const chainSrc = join(ROOT, 'marco-chain.js');
+const chainSrc = join(PLATFORM, 'marco-chain.js');
 const chainOut = join(SITE, 'marco-chain.js');
 let chainNote = 'absent — run `npm run build:chain` (page falls back to the simulation)';
 if (CHAIN_SRC !== 'marco-chain.js') {

@@ -2,12 +2,12 @@
   "name": "marco-site",
   "version": "0.1.0",
   "private": true,
-  "description": "Build tooling for the Marco platform: index.html (spot), apps/preipo (pre-IPO vaults) and apps/futures (valuation futures).",
+  "description": "Build tooling for the Marco platform: index.html (spot) at the repo root, pre-ipo/web and valuation-futures/web.",
   "scripts": {
     "build": "sh src/build.sh && node src/build-apps.mjs",
     "build:chain": "node src/build-chain.js",
     "serve": "node src/serve.js",
-    "build:preipo": "node launch/src/build.mjs",
+    "build:preipo": "node ../pre-ipo/web/src/build.mjs --out pre-ipo/web --chain ../../platform/marco-chain.js",
     "setup:devnet": "node scripts/devnet/init-spot-markets-devnet.js && node scripts/devnet/init-futures-devnet.js",
     "operator": "npm --prefix orchestrator run operator:devnet"
   },

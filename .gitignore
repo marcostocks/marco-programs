@@ -9,4 +9,4 @@ test-ledger/
 *-keypair.json
 
 # build intermediate — src/build.sh concatenates parts into it
-src/index.src.html
+platform/src/index.src.html
