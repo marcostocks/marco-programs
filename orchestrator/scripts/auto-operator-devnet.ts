@@ -13,8 +13,9 @@
  * The attestation is a mock: a synthetic position reference and a hash of a
  * synthetic statement. That is exactly the boundary where a real custodian
  * plugs in — everything else (the writes, their ordering, the idempotency) is
- * the production adapter. Execution prices are sampled just inside the
- * trader's limit, so every program-side protection stays honest.
+ * the production adapter. Execution is at the price the app quoted (its limit
+ * less the 2% slippage allowance it adds), inside the trader's limit, so every
+ * program-side protection stays honest.
  *
  * Idempotent by on-chain state via the adapter, so restarts and races are
  * safe. Public-RPC 429s are retried with backoff.
@@ -127,7 +128,8 @@ async function pass(TICKER: string): Promise<void> {
       );
       const deployedUnits = BigInt((raw2 as { deployedAmount: BN }).deployedAmount.toString());
       const limitUnits = deployed!.limitPrice.amount;
-      const execUnits = (limitUnits * 99n) / 100n;               // 1% inside the cap
+      // The app sets limit = quote × 1.02, so this fills at the price it quoted.
+      const execUnits = (limitUnits * 100n) / 102n;
       const sharesUnits = (deployedUnits * 1_000_000n) / execUnits; // 6dp shares; notional ≤ deployed
 
       const { custodyReference, documentHash } = mockAttestation(TICKER, String(id), sharesUnits, execUnits);
@@ -148,7 +150,8 @@ async function pass(TICKER: string): Promise<void> {
     if (order.side === 'SELL' && order.state === 'PENDING') {
       const sharesUnits = order.escrowedShares!.units;
       const limitUnits = order.limitPrice.amount;
-      const execUnits = (limitUnits * 101n) / 100n;              // 1% above the floor
+      // The app sets limit = quote × 0.98, so this fills at the price it quoted.
+      const execUnits = (limitUnits * 100n) / 98n;
       const proceedsUnits = (sharesUnits * execUnits) / 1_000_000n;
 
       // Simulate the broker's wire: the proceeds must genuinely be present as
@@ -188,18 +191,81 @@ async function pass(TICKER: string): Promise<void> {
   }
 }
 
-async function main(): Promise<void> {
-  log(`auto-operator on ${TICKERS.join(', ')} · ${rpcUrl} · ${ONCE ? 'single pass' : `every ${POLL_MS / 1000}s`}`);
-  log('custodian attestations are SIMULATED — this is the seam a real custodian replaces');
-  for (;;) {
-    for (const ticker of TICKERS) {
-      try {
-        await pass(ticker);
-      } catch (error) {
-        log(`${ticker} pass failed: ${error instanceof Error ? error.message.slice(0, 140) : error}`);
+/* One sweep at a time. A trigger that arrives mid-sweep queues its markets for
+   exactly one more round, so a burst of orders never stacks overlapping passes
+   against a rate-limited RPC. */
+let sweeping = false;
+const queued = new Set<string>();
+async function sweep(tickers: string[] = TICKERS): Promise<void> {
+  tickers.forEach((t) => queued.add(t));
+  if (sweeping) return;
+  sweeping = true;
+  try {
+    while (queued.size) {
+      const round = TICKERS.filter((t) => queued.has(t));
+      queued.clear();
+      for (const ticker of round) {
+        try {
+          await pass(ticker);
+        } catch (error) {
+          log(`${ticker} pass failed: ${error instanceof Error ? error.message.slice(0, 140) : error}`);
+        }
       }
     }
-    if (ONCE) return;
+  } finally {
+    sweeping = false;
+  }
+}
+
+/* Every market's order counter in ONE call. A market whose counter moved has a
+   new order, so only that market is swept — cheap enough to run every few
+   seconds where a full sweep (an RPC per order) is not. */
+const admin = new PublicKey(artifacts.addresses.wallets.admin);
+const marketKeys = TICKERS.map((t) => marketPda(artifacts.spotProgramId, admin, t));
+const lastSeq = new Map<string, number>();
+async function newOrders(): Promise<string[]> {
+  const infos = await conn.getMultipleAccountsInfo(marketKeys);
+  const moved: string[] = [];
+  infos.forEach((info, i) => {
+    if (!info) return;
+    const m = spotRead.coder.accounts.decode('market', info.data) as { orderSeq: BN };
+    const seq = Number(m.orderSeq.toString()), t = TICKERS[i]!;
+    if (lastSeq.has(t) && seq !== lastSeq.get(t)) moved.push(t);
+    lastSeq.set(t, seq);
+  });
+  return moved;
+}
+
+const WATCH_MS = 3_000;
+async function main(): Promise<void> {
+  log(`auto-operator on ${TICKERS.join(', ')} · ${rpcUrl} · ${ONCE ? 'single pass' : `new orders within ~${WATCH_MS / 1000}s, full sweep every ${POLL_MS / 1000}s`}`);
+  log('custodian attestations are SIMULATED — this is the seam a real custodian replaces');
+  if (ONCE) return sweep();
+
+  // Fastest path: the program logs each instruction, so a confirmed
+  // PlaceBuy/PlaceSell can trigger a sweep within a second. Public and free-tier
+  // RPCs throttle websockets, though, so this is a bonus, not the mechanism.
+  try {
+    conn.onLogs(artifacts.spotProgramId, (entry) => {
+      if (entry.err || !entry.logs.some((l) => /Instruction: Place(Buy|Sell)/.test(l))) return;
+      log(`order seen in ${entry.signature.slice(0, 8)}… — filling`);
+      void sweep();
+    }, 'confirmed');
+  } catch { /* no websocket — the watcher below covers it */ }
+
+  // The mechanism: watch the order counters, sweep the markets that moved.
+  await newOrders().catch(() => []);
+  setInterval(() => {
+    newOrders().then((moved) => {
+      if (!moved.length) return;
+      log(`new order on ${moved.join(', ')} — filling`);
+      void sweep(moved);
+    }).catch(() => { /* throttled — next tick */ });
+  }, WATCH_MS);
+
+  // Backstop: a full sweep, for anything left behind by a failed pass.
+  for (;;) {
+    await sweep();
     await new Promise((r) => setTimeout(r, POLL_MS));
   }
 }

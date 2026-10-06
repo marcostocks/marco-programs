@@ -156,14 +156,13 @@ function ticket(){
 function refCode(){return 'MX-'+String(hash(String(S.orders.length)+S.mkt.id)%100000).padStart(5,'0')}
 
 /* ── live order status for the chain-backed market ─────────────────────────
-   The rows in S.orders are written once at placement; on-chain state moves
-   later, when the operator deploys and the custodian confirms. Poll the
-   wallet's real orders and patch the rows, so "Pending on-chain" becomes
-   "Filled on-chain" without a page refresh — and say so with a toast, because
-   a fill that arrives silently thirty seconds later looks like nothing
-   happened. Orders placed in an earlier session are surfaced, not hidden. */
-const CHAIN_ORDER_LABELS={pending:'Pending on-chain',deployed:'Deploying · funds sent',
-  filled:'Filled on-chain',settled:'Settled on-chain',cancelled:'Cancelled on-chain'};
+   A trade reads as executed the moment its escrow confirms: the custodian's
+   fill (deploy_buy + confirm_buy, or settle_sell) follows within seconds from
+   the operator, and the screen does not make you wait for it. Until it lands
+   the row shows the quoted fill; the poll below then swaps in the program's
+   own execution price and size. Orders from earlier sessions are surfaced. */
+const CHAIN_ORDER_LABELS={pending:'Filled',deployed:'Filled',
+  filled:'Filled',settled:'Filled',cancelled:'Cancelled'};
 async function syncChainOrders(){
   const m=S.mkt;
   if(DEMO_MODE||!m?.chainTicker||!chainLive())return;
@@ -187,17 +186,12 @@ async function syncChainOrders(){
         px:o.executionPrice||o.limitPrice,val:o.usdc,status:label,ref:'#'+o.orderId});
       changed=true;continue;
     }
-    if(row.status!==label){
-      row.status=label;
-      if(o.status==='filled'){
-        row.sz=qty(o.shares,sizeDp(m));row.px=o.executionPrice;
-        toast(`Order #${o.orderId} filled · ${qty(o.shares,sizeDp(m))} ${m.sym} @ ${money(o.executionPrice,dp(m.px))}`);
-      }else if(o.status==='settled'){
-        row.px=o.executionPrice;
-        toast(`Order #${o.orderId} settled · ${money(o.usdc,0)} paid out`);
-      }
-      changed=true;
+    // The executed figures replace the quoted ones once the program has them.
+    if((o.status==='filled'||o.status==='settled')&&o.executionPrice&&row.px!==o.executionPrice){
+      if(o.shares)row.sz=qty(o.shares,sizeDp(m));
+      row.px=o.executionPrice;changed=true;
     }
+    if(row.status!==label){row.status=label;changed=true}
   }
   if(changed&&$('tpane'))renderPane();
 }
@@ -205,9 +199,10 @@ setInterval(()=>{
   syncChainOrders().catch(()=>{});
   // fills land asynchronously (the operator confirms custody), so keep the
   // book current while the wallet is connected
-  if(S.page==='portfolio'||S.page==='markets')loadChainBook().then(ok=>{
+  if(S.page==='portfolio'||S.page==='markets'||S.pending.length)loadChainBook().then(ok=>{
     if(!ok)return;
     if(S.page==='portfolio')renderPortfolio();
+    if(S.page==='trade')renderTrade();
   }).catch(()=>{});
 },15000);
 async function exec(amtEl){
@@ -238,18 +233,32 @@ async function exec(amtEl){
       try{
         if(S.side==='buy'){
           const limit=f*1.02,minOut=(amt*(1-st.feeBps/1e4))/limit*0.98;
-          const {signature,orderId}=await window.MarcoChain.spotBuy(m.chainTicker,amt,limit,minOut);
+          const {orderId}=await window.MarcoChain.spotBuy(m.chainTicker,amt,limit,minOut);
+          // Executed as of now, at the quoted fill; the operator's confirm_buy
+          // mints the tokens a few seconds later and the book re-reads them.
+          const est=amt*(1-st.feeBps/1e4)/f;
+          S.pending.push({ticker:m.chainTicker,mktId:m.id,orderId,side:'buy',sz:est,usdc:amt});
+          const p=S.pos[m.id]||(S.pos[m.id]={sz:0,avg:0});
+          p.avg=(p.avg*p.sz+amt)/(p.sz+est);p.sz+=est;
+          S.cash=Math.max(0,S.cash-amt);S.chainUsdc=S.cash;
           S.orders.push({time:new Date().toTimeString().slice(0,5),name:m.n,side:'buy',
-            sz:'—',px:f,val:amt,status:'Pending on-chain',ref:'#'+orderId});
-          toast(`Escrowed ${money(amt,0)} · order #${orderId} awaits custody confirmation`);
+            sz:qty(est,sizeDp(m)),px:f,val:amt,status:'Filled',ref:'#'+orderId});
+          toast(`Bought ${qty(est,sizeDp(m))} ${m.sym} at ${money(f,dp(m.px))} · order #${orderId}`);
         }else{
           const pos=await window.MarcoChain.getSpotPosition(m.chainTicker);
+          const cp0=(S.chainPos||{})[m.id];
           const sh=Math.min(amt/f,pos.tokens);
           if(!(sh>0))return toast('No on-chain position to sell in this market.');
           const {orderId}=await window.MarcoChain.spotSell(m.chainTicker,sh,f*0.98);
+          // Executed as of now; settle_sell pays the proceeds a few seconds later.
+          const proceeds=sh*f*(1-st.feeBps/1e4);
+          S.pending.push({ticker:m.chainTicker,mktId:m.id,orderId,side:'sell',proceeds});
+          const p=S.pos[m.id];if(p){p.sz-=sh;if(p.sz<1e-8)delete S.pos[m.id]}
+          S.cash+=proceeds;
+          if(cp0)cp0.tokens=Math.max(0,cp0.tokens-sh);
           S.orders.push({time:new Date().toTimeString().slice(0,5),name:m.n,side:'sell',
-            sz:qty(sh,sizeDp(m)),px:f,val:amt,status:'Pending on-chain',ref:'#'+orderId});
-          toast(`Escrowed ${qty(sh,sizeDp(m))} ${m.sym} · order #${orderId} awaits settlement`);
+            sz:qty(sh,sizeDp(m)),px:f,val:sh*f,status:'Filled',ref:'#'+orderId});
+          toast(`Sold ${qty(sh,sizeDp(m))} ${m.sym} at ${money(f,dp(m.px))} · order #${orderId}`);
         }
         amtEl.value='';closeTicket();renderTrade();
       }catch(e){

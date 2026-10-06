@@ -177,7 +177,7 @@ const START={cash:250000,pos:{
 const S={page:'markets',mkt:MARKETS[0],tf:'1D',side:'buy',cash:0,pos:{},vpos:{},series:[],tab:'orders',
   orders:[],feed:FEED.slice(),elect:'shares',vault:null,cat:'all',q:'',mode:'std',bookTick:0,aboutOpen:false,
   sort:{k:'capN',dir:-1},watch:{zhipu:1,btc:1,baba:1,tencent:1},feedTab:'All',heroI:0,heroHold:0,feedI:0,buys:[],vflow:null,flowT:0,featId:null,layout:'overview',custom:null,chartMkt:null,live:false,
-  wlOpen:false,prev:0,geo:null,wallet:null};
+  wlOpen:false,prev:0,geo:null,wallet:null,pending:[]};
 function seed(){S.cash=START.cash;S.pos=JSON.parse(JSON.stringify(START.pos));
   S.vpos=JSON.parse(JSON.stringify(START.vpos));S.orders=[];
   // A chain-backed vault starts at zero rather than at an illustrative figure:

@@ -145,7 +145,7 @@ async function syncChainVaults(opts){
    empty — the seeded demo book only survives where there is no chain at all
    (opened off disk) or in the recorded tour (?demo=1). */
 function emptyBook(){
-  S.cash=0;S.pos={};S.vpos={};S.chainPos={};S.chainUsdc=null;
+  S.cash=0;S.pos={};S.vpos={};S.chainPos={};S.chainUsdc=null;S.pending=[];
   if(typeof go==='function'&&S.page)go(S.page);
 }
 async function loadChainBook(){
@@ -158,6 +158,23 @@ async function loadChainBook(){
   S.pos={};
   MARKETS.forEach(m=>{const h=m.chainTicker&&spot[m.chainTicker];
     if(h&&h.tokens>0)S.pos[m.id]={sz:h.tokens,avg:h.avgCost||m.px}});
+  /* Trades shown as executed whose custodian leg has not landed yet. Chain
+     already reflects what left the wallet (the buy's USDC, the sell's tokens);
+     add what is coming back, until the order stops being pending. */
+  const still=[];
+  for(const t of new Set((S.pending||[]).map(p=>p.ticker))){
+    const mine=S.pending.filter(p=>p.ticker===t);
+    const os=await c.getMyOrders(t).catch(()=>null);
+    if(!os){still.push(...mine);continue}
+    mine.forEach(p=>{const o=os.find(x=>x.orderId===p.orderId);
+      if(!o||o.status==='pending'||o.status==='deployed')still.push(p)});
+  }
+  S.pending=still;
+  still.forEach(p=>{
+    if(p.side==='buy'){const q=S.pos[p.mktId]||(S.pos[p.mktId]={sz:0,avg:0});
+      q.avg=(q.avg*q.sz+p.usdc)/(q.sz+p.sz);q.sz+=p.sz}
+    else S.cash+=p.proceeds;
+  });
   S.vpos={};
   await syncChainVaults({fresh:true}).catch(()=>{});
   return true;
