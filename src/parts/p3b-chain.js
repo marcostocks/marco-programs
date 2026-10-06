@@ -130,6 +130,36 @@ async function syncChainVaults(opts){
   return changed.some(Boolean);
 }
 
+/* ---- the book -----------------------------------------------------------
+
+   With a real wallet connected, the platform's book IS the wallet: cash is
+   its USDC, spot positions are its position tokens across every market, and
+   vault positions are its claim tokens. Swapping the book rather than teaching
+   each view about the chain means the portfolio, the hero, the watchlist and
+   the ticket all read real balances unchanged. The demo book is kept aside and
+   comes back on disconnect. */
+let demoBook=null;
+async function loadChainBook(){
+  if(!chainLive())return false;
+  const c=window.MarcoChain;
+  const [usdc,spot]=await Promise.all([
+    c.getUsdcBalance().catch(()=>null),c.getSpotPortfolio().catch(()=>null)]);
+  if(usdc==null||spot==null)return false;
+  if(!demoBook)demoBook={cash:S.cash,pos:S.pos,vpos:S.vpos};
+  S.cash=usdc;S.chainUsdc=usdc;
+  S.pos={};
+  MARKETS.forEach(m=>{const h=m.chainTicker&&spot[m.chainTicker];
+    if(h&&h.tokens>0)S.pos[m.id]={sz:h.tokens,avg:h.avgCost||m.px}});
+  S.vpos={};
+  await syncChainVaults({fresh:true}).catch(()=>{});
+  return true;
+}
+function restoreDemoBook(){
+  if(!demoBook)return;
+  S.cash=demoBook.cash;S.pos=demoBook.pos;S.vpos=demoBook.vpos;demoBook=null;
+  S.chainPos={};S.chainUsdc=null;
+}
+
 /* ---- wallet ------------------------------------------------------------- */
 
 async function connectWallet(){

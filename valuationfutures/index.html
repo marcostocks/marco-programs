@@ -658,7 +658,7 @@ const EMA_HALFLIFE_MS=18000, CONVERGE_MS=24000, FREEZE_CEIL_MS=15000;
 const CONVERGE_HOURS=36;   // production window is 24–48h; the demo runs it in CONVERGE_MS but LABELS it in real hours
 const easeOut=t=>1-(1-t)*(1-t);   // decelerating ramp — moves immediately, settles into the anchor
 function overrideMark(){ const o=MKT.override, t=(Date.now()-o.start)/o.dur;
-  if(t>=1){ MKT.ema=o.to; MKT.base=MKT.quote/o.to; MKT.override=null; return o.to; }  // hand back to internal; book re-anchored
+  if(t>=1){ MKT.ema=o.to; if(!LIVE)MKT.base=MKT.quote/o.to; MKT.override=null; return o.to; }  // hand back to internal; book re-anchored
   return o.from+(o.to-o.from)*easeOut(t); }
 const freezeExpired=()=>MKT.frozen&&MKT.extAnchor>0&&(Date.now()-MKT.freezeStart>FREEZE_CEIL_MS);
 function mark(){ if(MKT.settled)return MKT.settlePrice;
@@ -682,8 +682,111 @@ const uPnl=(p,price)=>p.side==='long'?p.base*price-p.openNotional:p.openNotional
 const notionalAt=(p,price)=>Math.abs(p.base)*price;
 const liqVal=p=>p.side==='long'?(p.openNotional-p.margin)/(p.base*(1-MKT.mmr)):(p.openNotional+p.margin)/(Math.abs(p.base)*(1+MKT.mmr));
 
-/* chain seam */
-const CHAINCLIENT=window.MarcoFutures||null, LIVE=!!CHAINCLIENT;
+/* ══════════ chain — live on devnet when marco-chain.js loads ══════════
+   With the bundle beside the page, MKT and POS are read from the marco_futures
+   program rather than simulated: the reserves ARE the vAMM, the position IS the
+   wallet's Position account, and every open and close is a transaction the
+   wallet signs. The Simulate menu stays, as a what-if that never touches the
+   position. Without the bundle (opened off disk) the page runs the simulation. */
+const CHAIN_SRC='@CHAIN_SRC@';
+const EXPLORER=(kind,id)=>'https://explorer.solana.com/'+kind+'/'+id+'?cluster=devnet';
+let LIVE=false, CH=null, LAST_TX=null;
+(function borrowShellWallet(){
+  let P=null;try{P=window.parent!==window&&window.parent.MarcoShell?window.parent:null}catch(e){}
+  if(!P)return;
+  for(const k of ['solana','phantom'])
+    if(!(k in window))try{Object.defineProperty(window,k,{configurable:true,get:()=>P[k]})}catch(e){}
+})();
+function loadChain(){
+  if(CHAIN_SRC.startsWith('@'))return Promise.resolve(null);   // unbuilt source: simulation
+  let demo=false;try{demo=!!window.parent.MarcoShell?.demo}catch(e){}
+  if(demo)return Promise.resolve(null);                         // the platform's recorded tour
+  return new Promise(res=>{const s=document.createElement('script');s.src=CHAIN_SRC;
+    s.onload=()=>res(window.MarcoChain||null);s.onerror=()=>res(null);document.head.appendChild(s);});
+}
+/* Notional for a ticket: the program requires notional ≤ (margin − fee) × max
+   leverage, so size it so the ratio holds after the fee, with a hair of room. */
+const liveNotional=(m,L)=>m*L/(1+MKT.takerFee*L)*0.995;
+async function syncChain(){
+  const m=await CH.getFuturesMarket().catch(()=>null); if(!m)return false;
+  MKT.quote=m.quoteReserve; MKT.base=m.baseReserve; MKT.anchor=m.anchor;
+  MKT.maxLev=m.maxLeverage; MKT.mmr=m.maintenanceMarginBps/1e4;
+  MKT.takerFee=m.takerFeeBps/1e4; MKT.liqFee=m.liquidationFeeBps/1e4;
+  MKT.insurance=m.insurance; MKT.longOI=m.longOI; MKT.shortOI=m.shortOI;
+  MKT.ipoAt=m.expiry; MKT.chainAddr=m.address;
+  if(!MKT.override&&!MKT.frozen)MKT.ema=vammMid();     // the internal mark is the program's book
+  W.connected=CH.connected;
+  if(CH.connected){
+    W.usdc=await CH.getUsdcBalance().catch(()=>W.usdc)??0;
+    const p=await CH.getFuturesPosition().catch(()=>null);
+    MKT.realized=p?p.realizedPnl:0;
+    POS=p&&p.side?{side:p.side,base:p.base,openNotional:p.openNotional,margin:p.margin,
+      lev:p.margin>0?p.openNotional/p.margin:1}:null;
+  }else{W.usdc=0;POS=null;}
+  $('wdot').classList.toggle('on',W.connected);
+  return true;
+}
+function liveBanner(){
+  $('bdot').className='bdot live';
+  $('bmsg').innerHTML='<b>Live on devnet</b> — trading the <a href="'+EXPLORER('address',MKT.chainAddr)
+    +'" target="_blank" rel="noopener">marco-futures market</a>'
+    +(LAST_TX?' · last tx <a href="'+EXPLORER('tx',LAST_TX)+'" target="_blank" rel="noopener">'
+      +LAST_TX.slice(0,4)+'…'+LAST_TX.slice(-4)+' ↗</a>':'');
+}
+async function liveTx(label,run){
+  const c=$('cta'), was=c.innerHTML; c.disabled=true; c.textContent='Confirm in your wallet…';
+  try{ const {signature}=await run(); LAST_TX=signature; await syncChain(); return signature; }
+  catch(e){ toast(label+' failed · '+String(e.message||e).slice(0,110)); return null; }
+  finally{ c.disabled=false; c.innerHTML=was; liveBanner(); renderAll(); }
+}
+async function openLive(){
+  if(!W.connected)return connectLive();
+  if(POS&&POS.side!==SIDE)return toast('Close your position to switch sides');
+  const m=parseFloat($('amt').value)||0, L=parseFloat($('levRng').value)||1, notional=liveNotional(m,L);
+  if(notional<=0)return; if(m>W.usdc)return toast('Not enough USDC');
+  // Slippage bound: the preview's average fill, 1% either way.
+  const q=quoteOpen(SIDE,notional), avg=notional/Math.abs(q.base), limit=SIDE==='long'?avg*1.01:avg*0.99;
+  const adding=!!POS;
+  const sig=await liveTx('Order',()=>CH.futuresOpen(SIDE,m,notional,limit));
+  if(!sig)return;
+  HIST.push(mark()); HIST.shift();
+  toast((adding?'Added to ':'Opened ')+SIDE+' '+L.toFixed(1)+'× · '+usd(notional)+' on chain');
+}
+async function closeLive(){
+  if(!POS)return;
+  const before={usdc:W.usdc,realized:MKT.realized||0,pos:POS}, entry=POS.openNotional/Math.abs(POS.base);
+  const sig=await liveTx('Close',()=>CH.futuresClose(0));
+  if(!sig)return;
+  // PnL as the wallet sees it: what came back against the margin that was in,
+  // so the closing fee counts (the program's realized_pnl excludes fees).
+  const payout=W.usdc-before.usdc, p=before.pos, realized=payout-p.margin, exitPx=mark();
+  const roi=p.margin>0?realized/p.margin*100:0;
+  const card={name:'Moonshot AI',sym:'MOON·USDC',side:p.side,roi,entry,exit:exitPx,exitLabel:'Exit valuation',lev:p.lev,pnl:realized,margin:p.margin};
+  HISTORY.unshift({side:p.side,size:p.openNotional,entry,exit:exitPx,pnl:realized,roi,lev:p.lev,kind:'Closed',ts:Date.now(),card});
+  addEvent({type:'close',tone:realized>=0?'up':'down',price:exitPx,title:'Position closed on chain',
+    detail:'Closed '+p.side+' · size '+usd(p.openNotional)+'. Realized PnL '+usd2(realized)+' · payout '+usd(payout)
+      +'. <a href="'+EXPLORER('tx',sig)+'" target="_blank" rel="noopener">View transaction ↗</a>',card});
+  toast('Closed on chain · payout '+usd(payout)+' · PnL '+usd2(realized));
+  renderAll(); showEventPopover(EVENTS.length-1);
+}
+async function connectLive(){
+  try{
+    if(CH.connected){await CH.disconnect();SHELL?.walletChanged(false);toast('Wallet disconnected');}
+    else{await CH.connect();SHELL?.walletChanged(true);toast('Wallet connected · '+CH.shortAddress);}
+  }catch(e){return toast(String(e.message||e).slice(0,110));}
+  await syncChain(); renderAll();
+}
+/* What the program would pay at a listing price — shown, never posted. Settlement
+   is the admin's settle_market at the real listing. */
+function whatIfIPO(){
+  const def=(mark()*1.25).toFixed(1);
+  const raw=prompt('What-if: first-day listing valuation ($B)?\nShown only — your on-chain position is not touched.',def);
+  if(raw===null)return; const price=parseFloat(raw); if(!(price>0))return toast('Enter a valuation in $B');
+  const line=POS?'Your '+POS.side+' would settle with PnL '+usd2(uPnl(POS,price))+'.':'You have no open position.';
+  addEvent({type:'ipo',frac:0.94,price,title:'What-if: lists at '+bil(price),
+    detail:'Simulation only. '+line+' On chain, the market settles when the admin posts the real listing price (settle_market).'});
+  renderAll(); showEventPopover(EVENTS.length-1);
+}
 
 /* format */
 const $=s=>document.getElementById(s);
@@ -793,13 +896,13 @@ function renderHeader(){
   const cue=$('ovrCue');
   if(cue){ if(MKT.override){ const o=MKT.override, tt=Math.min(1,(Date.now()-o.start)/o.dur), remH=Math.max(1,Math.ceil((1-tt)*CONVERGE_HOURS));
     cue.hidden=false; cue.textContent='converging → '+bil(o.to)+' · ~'+remH+'h left'; } else cue.hidden=true; }
-  $('kVol').textContent=compact(MKT.vol);
+  $('kVol').textContent=LIVE?'—':compact(MKT.vol);
   $('kOI').textContent=compact(MKT.longOI+MKT.shortOI);
   updateCountdown();
   const lo=Math.min(...HIST),hi=Math.max(...HIST); $('kRange').textContent=lo.toFixed(1)+' – '+hi.toFixed(1);
 }
 function renderTicket(){
-  const m=parseFloat($('amt').value)||0, L=parseFloat($('levRng').value)||1, notional=m*L;
+  const m=parseFloat($('amt').value)||0, L=parseFloat($('levRng').value)||1, notional=LIVE?liveNotional(m,L):m*L;
   $('levVal').textContent=L.toFixed(1)+'×';
   $('bal').textContent='Balance '+usd(W.usdc);
   const fee=notional*MKT.takerFee, marginAfter=Math.max(0,m-fee);
@@ -810,7 +913,8 @@ function renderTicket(){
   $('sLiq').textContent=liq>0?bil(liq):'—';
   $('sFee').textContent=usd(fee);
   const c=$('cta'); c.className='cta '+SIDE;
-  if(!W.connected){c.textContent='Connect wallet to trade';c.disabled=false;}
+  if(LIVE&&!CH.connected){c.textContent='Connect wallet to trade';c.disabled=false;}
+  else if(!W.connected){c.textContent='Connect wallet to trade';c.disabled=false;}
   else if(MKT.settled){c.textContent='Market settled';c.disabled=true;}
   else if(POS&&POS.side!==SIDE){c.textContent='Close to switch sides';c.disabled=true;}
   else if(notional<=0){c.textContent='Enter an amount';c.disabled=true;}
@@ -822,7 +926,7 @@ function renderTicket(){
 function renderPosition(){
   const tb=$('tPos');
   if(!POS){ tb.innerHTML=`<tr><td colspan="9" class="tempty">No open position in MOON·USDC</td></tr>`; return; }
-  const price=mark(), pnl=uPnl(POS,price), val=notionalAt(POS,price), liq=liqVal(POS), pc=pnl/POS.margin*100, u=pnl>=0;
+  const price=LIVE?vammMid():mark(), pnl=uPnl(POS,price), val=notionalAt(POS,price), liq=liqVal(POS), pc=pnl/POS.margin*100, u=pnl>=0;
   tb.innerHTML=`<tr>
     <td><span class="nm">Moonshot AI</span> <span class="mini num">MOON·USDC</span></td>
     <td class="r"><span class="pchip ${POS.side}">${POS.side}</span></td>
@@ -865,6 +969,7 @@ function renderHistory(){
   tb.querySelectorAll('[data-hist]').forEach(b=>b.onclick=()=>openShare(HISTORY[+b.dataset.hist].card));
 }
 function renderBook(){
+  if(LIVE)return renderVammBook();
   const mid=vammMid(), half=mid*0.0004, r=rng(hashStr('book'+Math.floor(Date.now()/1500))), N=8;
   const bk=v=>v>=1e6?(v/1e6).toFixed(2)+'M':Math.round(v/1e3)+'K';
   const sz=[]; for(let i=0;i<N*2;i++)sz.push((0.4+r()*3.2)*1e6);
@@ -876,6 +981,20 @@ function renderBook(){
     b+=`<div class="lvl b num"><span>${px.toFixed(2)}</span><span>${bk(sz[N+i])}</span><span>${bk(cB)}</span><div class="dbar" style="width:${Math.min(100,cB/mx*100)}%"></div></div>`;}
   $('asks').innerHTML=a; $('bids').innerHTML=b;
   $('midPx').textContent=bil(mid); $('midSpr').textContent='spread '+((half*2/mid)*100).toFixed(2)+'%';
+}
+/* The vAMM has no resting orders, but its curve says exactly what each size
+   would cost: price after buying (asks) or selling (bids) cumulative notional. */
+function renderVammBook(){
+  const k=K(), mid=vammMid(), N=8, steps=[2500,5000,10000,20000,35000,50000,75000,100000];
+  const at=n=>{const nq=MKT.quote+n;return nq/(k/nq);};
+  const bk=v=>v>=1e6?(v/1e6).toFixed(2)+'M':Math.round(v/1e3)+'K', mx=steps[N-1];
+  let a='',b='';
+  for(let i=N-1;i>=0;i--){const n=steps[i],sz=i?n-steps[i-1]:n;
+    a=`<div class="lvl a num"><span>${at(n).toFixed(2)}</span><span>${bk(sz)}</span><span>${bk(n)}</span><div class="dbar" style="width:${n/mx*100}%"></div></div>`+a;}
+  for(let i=0;i<N;i++){const n=steps[i],sz=i?n-steps[i-1]:n;
+    b+=`<div class="lvl b num"><span>${at(-n).toFixed(2)}</span><span>${bk(sz)}</span><span>${bk(n)}</span><div class="dbar" style="width:${n/mx*100}%"></div></div>`;}
+  $('asks').innerHTML=a; $('bids').innerHTML=b;
+  $('midPx').textContent=bil(mid); $('midSpr').textContent='vAMM · on chain';
 }
 function renderDetails(){
   const rows=[['Last round',bil(35)],['Mark',bil(mark())],
@@ -894,6 +1013,7 @@ function renderAll(){ renderHeader(); renderTicket(); renderPosition(); renderBo
 function toast(msg){const t=$('toast');t.textContent=msg;t.classList.add('show');clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove('show'),2600);}
 function setSide(s){SIDE=s;[...$('seg').children].forEach(c=>c.classList.toggle('on',c.dataset.side===s));renderTicket();}
 function openPosition(){
+  if(LIVE)return openLive();
   if(!W.connected)return connectWallet();
   if(MKT.settled)return;
   if(POS&&POS.side!==SIDE)return toast('Close your position to switch sides');
@@ -914,6 +1034,7 @@ function openPosition(){
 /* record a chart marker; older markers slide left so new ones land at the right edge */
 function addEvent(ev){ EVENTS.forEach(e=>e.frac=Math.max(0.05,e.frac-0.13)); EVENTS.push(Object.assign({frac:0.9,ts:Date.now()},ev)); }
 function closePosition(){
+  if(LIVE)return closeLive();
   if(!POS)return; const side=POS.side, ab=Math.abs(POS.base), c=quoteClose(side,ab);
   const pnl=side==='long'?c.quote-POS.openNotional:POS.openNotional-c.quote, fee=Math.abs(c.quote)*MKT.takerFee;
   const payout=Math.max(0,POS.margin+pnl-fee);
@@ -937,10 +1058,12 @@ function fireFundingRound(){
   MKT.override={from,to:anchor,start:Date.now(),dur:CONVERGE_MS};
   addEvent({type:'round', price:from, title:'Private funding round announced',
     detail:'A new primary funding round was confirmed at '+bil(anchor)+', up from '+bil(from)+'. The mark converges to the verified valuation over a 24–48-hour window (compressed here for the demo).'});
-  toast('Funding round confirmed · anchor '+bil(anchor)+' · mark converging');
+  if(LIVE)EVENTS[EVENTS.length-1].detail+=' <b>Simulation only</b> — the on-chain mark is the program\'s vAMM, and your position is unaffected.';
+  toast((LIVE?'Simulation · ':'')+'Funding round confirmed · anchor '+bil(anchor)+' · mark converging');
   startOverrideAnim(); renderAll();
 }
 function simulateIPO(){
+  if(LIVE)return whatIfIPO();
   const def=(mark()*1.25).toFixed(1);
   const raw=prompt('Post the first-day listing valuation ($B).\nLong profits above entry, short below.',def);
   if(raw===null)return; const price=parseFloat(raw); if(!(price>0))return toast('Enter a valuation in $B');
@@ -962,6 +1085,7 @@ function simulateIPO(){
   showEventPopover(EVENTS.length-1);
 }
 function connectWallet(){
+  if(LIVE)return connectLive();
   if(W.connected){W.connected=false;$('wdot').classList.remove('on');toast('Disconnected');renderAll();return;}
   if(LIVE)CHAINCLIENT.connect&&CHAINCLIENT.connect();
   W.connected=true;$('wdot').classList.add('on');
@@ -1045,8 +1169,8 @@ function startOverrideAnim(){ if(_ovrTimer)return; _ovrLastPush=Date.now();
     prevMark=mark(); renderHeader(); drawChart(); if(POS)renderPosition(); }, 80); }
 let _lastTick=Date.now();
 function ambient(){ const now=Date.now(), dt=now-_lastTick; _lastTick=now; if(MKT.settled)return;
-  if(!MKT.override&&!MKT.frozen){ const drift=(Math.random()-0.5)*0.003-(vammMid()-MKT.revTarget)/MKT.revTarget*0.02; MKT.quote*=1+drift; }
-  MKT.vol+=Math.random()*40000;
+  if(!LIVE&&!MKT.override&&!MKT.frozen){ const drift=(Math.random()-0.5)*0.003-(vammMid()-MKT.revTarget)/MKT.revTarget*0.02; MKT.quote*=1+drift; }
+  if(!LIVE)MKT.vol+=Math.random()*40000;
   tickEMA(dt);                                    // internal mark trails the book
   HIST[HIST.length-1]=mark(); prevMark=mark();
   renderHeader(); drawChart(); renderBook(); if(POS)renderPosition(); }
@@ -1080,7 +1204,6 @@ function showView(v){
   SHELL?.routeChanged('futures',v==='docs'?'docs':'');
 }
 document.querySelectorAll('[data-view]').forEach(b=>b.addEventListener('click',()=>showView(b.dataset.view)));
-if(LIVE){$('bdot').className='bdot live';$('bmsg').innerHTML='<b>Live</b> — trading the on-chain marco-futures market.';}
 renderTape(); renderTfs(); seedHist();
 if(W.connected)$('wdot').classList.add('on');
 renderAll();
@@ -1093,6 +1216,20 @@ $('vaultLink').onclick=e=>{e.preventDefault();SHELL?.open('preipo','moon')};
 if(SHELL)SHELL.register('futures',{
   theme(t){document.documentElement.setAttribute('data-theme',t);drawChart()},
   route(path){showView(path==='docs'?'docs':'trade')},
+  wallet(on){if(LIVE&&on!==CH.connected)(on?CH.connect():CH.disconnect()).then(()=>syncChain()).then(renderAll).catch(()=>{})},
+});
+
+/* Go live if the chain bundle loads: the program's market replaces the sim. */
+loadChain().then(async c=>{
+  if(!c||!c.futuresMarketId||!c.futuresMarketId())return;
+  CH=c;
+  // The shell's wallet push reached register() before the bundle was here.
+  if(SHELL?.walletConnected?.()&&!c.connected)await c.connect().catch(()=>{});
+  if(!(await syncChain()))return;
+  LIVE=true; HISTORY.length=0; EVENTS.length=0; seedHist();
+  $('ipoBtn').firstChild.nextSibling.textContent=' Simulate ';
+  liveBanner(); renderAll();
+  setInterval(()=>{syncChain().then(ok=>{if(ok)renderAll()})},15000);
 });
 </script>
 </body>

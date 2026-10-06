@@ -1,0 +1,724 @@
+openapi: 3.1.0
+
+info:
+  title: Marco Orchestrator
+  version: 0.1.0
+  description: |
+    Operator and counterparty API for the service that links Marco's Solana
+    programs to the money services business, the executing broker and the
+    custodian.
+
+    **There is deliberately no endpoint that creates an order.** Intents are
+    born from observed on-chain events, because the on-chain escrow *is* the
+    authorisation. An HTTP caller has no way to make Marco spend a trader's
+    money.
+
+    Amounts are always transmitted as exact minor units in a string, alongside a
+    decimal string for display. `bigint` does not survive `JSON.stringify`, and
+    coercing to `number` corrupts anything above 2^53.
+
+servers:
+  - url: http://localhost:8080
+    description: Local development
+
+tags:
+  - name: health
+  - name: intents
+    description: The unit of orchestration — one thing a user asked for.
+  - name: accounts
+  - name: markets
+    description: |
+      Spot market state and the halt control. Halting is a human action — see
+      the backing-shortfall runbook.
+  - name: vaults
+    description: Pre-IPO vault mandates. A vault is a deal, not a user request.
+  - name: treasury
+  - name: ledger
+  - name: reconciliation
+  - name: webhooks
+    description: |
+      Counterparty callbacks. Not bearer-authenticated — authenticated by HMAC
+      over the raw request body instead.
+
+security:
+  - operatorToken: []
+
+paths:
+  /healthz:
+    get:
+      tags: [health]
+      summary: Liveness
+      security: []
+      responses:
+        '200':
+          description: The process is up
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: { type: string, const: ok }
+                  at: { type: string, format: date-time }
+
+  /readyz:
+    get:
+      tags: [health]
+      summary: Readiness
+      description: |
+        Fails closed when a treasury buffer is below its minimum or any
+        `CRITICAL` reconciliation break is open. The process being up says
+        nothing about whether it can safely orchestrate money.
+      security: []
+      responses:
+        '200': { description: Ready, content: { application/json: { schema: { $ref: '#/components/schemas/Readiness' } } } }
+        '503': { description: Degraded, content: { application/json: { schema: { $ref: '#/components/schemas/Readiness' } } } }
+
+  /v1/intents:
+    get:
+      tags: [intents]
+      summary: List intents
+      parameters:
+        - { name: wallet, in: query, schema: { type: string } }
+        - { name: kind, in: query, schema: { $ref: '#/components/schemas/IntentKind' } }
+        - { name: state, in: query, schema: { $ref: '#/components/schemas/IntentState' } }
+        - { name: ticker, in: query, schema: { type: string, example: '0700.HK' } }
+        - { name: vaultId, in: query, schema: { type: string } }
+        - { name: limit, in: query, schema: { type: integer, default: 100, maximum: 500 } }
+      responses:
+        '200':
+          description: Matching intents
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  count: { type: integer }
+                  intents: { type: array, items: { $ref: '#/components/schemas/Intent' } }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+  /v1/intents/{id}:
+    get:
+      tags: [intents]
+      summary: One intent, with its step attempts and journal entries
+      parameters: [{ $ref: '#/components/parameters/IntentId' }]
+      responses:
+        '200':
+          description: The intent and its full audit trail
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  intent: { $ref: '#/components/schemas/Intent' }
+                  attempts:
+                    type: array
+                    description: Write-ahead step records. An entry with a null `finishedAt` was in flight when the process died.
+                    items: { $ref: '#/components/schemas/StepAttempt' }
+                  journal: { type: array, items: { $ref: '#/components/schemas/JournalEntry' } }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /v1/intents/{id}/resume:
+    post:
+      tags: [intents]
+      summary: Resume a parked intent
+      description: |
+        Only valid from `NEEDS_MANUAL`. The note is mandatory and goes to the
+        audit log: the intent was parked because a human had to look at
+        something, and *why it is safe to continue* belongs on the record.
+      parameters: [{ $ref: '#/components/parameters/IntentId' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [note]
+              properties:
+                note:
+                  type: string
+                  minLength: 1
+                  example: Custodian confirmed position reference by phone, ticket OPS-91
+      responses:
+        '200': { description: Resumed, content: { application/json: { schema: { type: object, properties: { intent: { $ref: '#/components/schemas/Intent' } } } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '409': { description: The intent is not parked }
+
+  /v1/intents/{id}/unwind:
+    post:
+      tags: [intents]
+      summary: Force the compensation path
+      parameters: [{ $ref: '#/components/parameters/IntentId' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [note]
+              properties: { note: { type: string, minLength: 1 } }
+      responses:
+        '200': { description: Now unwinding }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /v1/intents/tick:
+    post:
+      tags: [intents]
+      summary: Drive the saga runner once
+      description: For operators who do not want to wait for the loop.
+      responses:
+        '200':
+          description: Tick result
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  result:
+                    type: object
+                    properties:
+                      claimed: { type: integer }
+                      advanced: { type: integer }
+                      waiting: { type: integer }
+                      completed: { type: integer }
+                      parked: { type: integer }
+                      failed: { type: integer }
+
+  /v1/accounts:
+    post:
+      tags: [accounts]
+      summary: Register a wallet
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [wallet]
+              properties:
+                wallet: { type: string, minLength: 32 }
+                beneficiaryRefs:
+                  type: object
+                  additionalProperties: { type: string }
+                  description: |
+                    Opaque handles for the holder's external receiving accounts,
+                    registered out of band and used for vault delivery
+                    elections. Raw account details never enter this service.
+      responses:
+        '200': { description: The account, created or existing }
+
+  /v1/accounts/{wallet}:
+    get:
+      tags: [accounts]
+      summary: Fetch an account
+      parameters: [{ name: wallet, in: path, required: true, schema: { type: string } }]
+      responses:
+        '200': { description: The account, content: { application/json: { schema: { type: object, properties: { account: { $ref: '#/components/schemas/Account' } } } } } }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /v1/accounts/{wallet}/verification:
+    put:
+      tags: [accounts]
+      summary: Record a KYC outcome
+      description: |
+        Stores the **outcome only**. Identity documents and PII stay with the
+        provider licensed to hold them.
+      parameters: [{ name: wallet, in: path, required: true, schema: { type: string } }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [status, tier, subjectRef, jurisdiction]
+              properties:
+                status: { type: string, enum: [NONE, PENDING, VERIFIED, REJECTED, EXPIRED] }
+                tier: { $ref: '#/components/schemas/AssuranceTier' }
+                subjectRef: { type: string, description: The provider's opaque subject id }
+                jurisdiction: { type: string, example: HK }
+                professionalInvestor: { type: boolean, default: false }
+                expiresAt: { type: [string, 'null'], format: date-time }
+      responses:
+        '200': { description: Updated }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /v1/markets/{ticker}:
+    get:
+      tags: [markets]
+      summary: Market state and any open backing shortfall
+      parameters: [{ name: ticker, in: path, required: true, schema: { type: string, example: '0700.HK' } }]
+      responses:
+        '200':
+          description: Market state
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  market:
+                    type: object
+                    properties:
+                      ticker: { type: string }
+                      status: { type: string, enum: [ACTIVE, PAUSED, CLOSED] }
+                      positionSupply: { $ref: '#/components/schemas/Quantity' }
+                      escrowBalance: { $ref: '#/components/schemas/Money' }
+                      feeBps: { type: integer }
+                  backingShortfall:
+                    oneOf:
+                      - { $ref: '#/components/schemas/ReconBreak' }
+                      - { type: 'null' }
+                    description: |
+                      Non-null means minting this ticker is currently blocked.
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /v1/markets/{ticker}/status:
+    post:
+      tags: [markets]
+      summary: Halt or resume a market
+      description: |
+        Deliberately a human action. A confirmed backing shortfall already
+        blocks minting on its own, so nothing unbacked can be created while an
+        operator decides — which means a custodian reporting glitch can never
+        halt a live market unattended.
+
+        The on-chain program handles a halt gracefully: no new orders, but
+        in-flight orders still settle or cancel, so halting never strands
+        capital that has already left a wallet.
+
+        See `docs/runbooks/backing-shortfall.md`.
+      parameters: [{ name: ticker, in: path, required: true, schema: { type: string } }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [status, note]
+              properties:
+                status: { type: string, enum: [ACTIVE, PAUSED, CLOSED] }
+                note:
+                  type: string
+                  minLength: 1
+                  description: Goes to the audit log. Reference the incident.
+                  example: Backing shortfall brk_xxx under investigation, INC-123
+      responses:
+        '200':
+          description: Status set
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ticker: { type: string }
+                  status: { type: string }
+                  signature: { type: string }
+                  alreadyApplied: { type: boolean, description: True when on-chain state already matched }
+        '400': { $ref: '#/components/responses/BadRequest' }
+
+  /v1/vaults:
+    get:
+      tags: [vaults]
+      summary: List vault mandates
+      responses:
+        '200': { description: Mandates }
+    post:
+      tags: [vaults]
+      summary: Create a mandate for an existing on-chain vault
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [vaultId, listingId, companyName]
+              properties:
+                vaultId: { type: string }
+                listingId: { type: string, description: The broker's identifier for the listing }
+                companyName: { type: string, example: ByteDance }
+                electionPeriodSeconds:
+                  type: integer
+                  default: 0
+                  description: |
+                    How long the share-delivery election window stays open at
+                    `mark_listed`. Zero runs a cash-only vault.
+                brokerAccountRef: { type: string }
+                custodyAccountRef: { type: string }
+      responses:
+        '200': { description: The mandate }
+
+  /v1/vaults/{id}:
+    get:
+      tags: [vaults]
+      summary: A mandate and the live on-chain vault state
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses:
+        '200': { description: Mandate and chain state }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /v1/vaults/{id}/advance:
+    post:
+      tags: [vaults]
+      summary: Authorise the next phase advance
+      description: |
+        Permission, not a command. The driver still refuses to submit until the
+        off-chain fact that justifies the phase actually exists — `mark_listed`
+        waits for the custodian to confirm the shares, `settle` waits for the
+        USDC to be back.
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [phase]
+              properties:
+                phase: { $ref: '#/components/schemas/VaultPhase' }
+      responses:
+        '200': { description: Authorised; includes the result of an immediate attempt }
+        '409': { description: Not a permitted transition from the current phase }
+
+  /v1/treasury:
+    get:
+      tags: [treasury]
+      summary: Buffer snapshots and top-up plans
+      responses:
+        '200':
+          description: Buffer health
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  buffers: { type: array, items: { $ref: '#/components/schemas/BufferSnapshot' } }
+                  topUpPlans: { type: array, items: { type: object } }
+
+  /v1/treasury/reservations:
+    get:
+      tags: [treasury]
+      summary: Outstanding holds
+      parameters: [{ name: currency, in: query, schema: { $ref: '#/components/schemas/Currency' } }]
+      responses:
+        '200': { description: Held reservations }
+
+  /v1/treasury/sweep-expired:
+    post:
+      tags: [treasury]
+      summary: Release holds whose intents stalled
+      description: |
+        A swept reservation is always a symptom — the returned capacity is not
+        the problem, the stalled intent is.
+      responses:
+        '200': { description: Swept reservations }
+
+  /v1/ledger/trial-balance:
+    get:
+      tags: [ledger]
+      summary: Trial balance
+      description: |
+        Every currency and every ticker must net to zero. A non-zero result is
+        a code defect in a posting template, never a counterparty discrepancy.
+      responses:
+        '200':
+          description: The trial balance
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  balanced: { type: boolean }
+                  trial:
+                    type: object
+                    properties:
+                      cash: { type: object, additionalProperties: { type: string } }
+                      positions: { type: object, additionalProperties: { type: string } }
+
+  /v1/ledger/balances:
+    get:
+      tags: [ledger]
+      summary: Account balances in one currency
+      parameters: [{ name: currency, in: query, schema: { $ref: '#/components/schemas/Currency' } }]
+      responses:
+        '200': { description: Non-zero balances }
+
+  /v1/recon/run:
+    post:
+      tags: [reconciliation]
+      summary: Run a three-way reconciliation
+      description: |
+        Both lists are needed: the on-chain escrow figure aggregates across every
+        market and vault, so an incomplete scope reads as a shortfall.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                tickers: { type: array, items: { type: string }, example: ['0700.HK'] }
+                vaultIds: { type: array, items: { type: string } }
+      responses:
+        '200':
+          description: The run and any breaks
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  runId: { type: string }
+                  clean: { type: boolean }
+                  breaks: { type: array, items: { $ref: '#/components/schemas/ReconBreak' } }
+
+  /v1/recon/breaks:
+    get:
+      tags: [reconciliation]
+      summary: List breaks
+      parameters:
+        - { name: status, in: query, schema: { type: string, enum: [OPEN, ACKNOWLEDGED, RESOLVED] } }
+        - { name: severity, in: query, schema: { type: string, enum: [INFO, WARN, CRITICAL] } }
+      responses:
+        '200': { description: Breaks }
+
+  /v1/recon/breaks/{id}/resolve:
+    post:
+      tags: [reconciliation]
+      summary: Close a break
+      description: |
+        The resolution note is mandatory. A break that vanishes without an
+        explanation is worse than one that stays open.
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [resolution]
+              properties: { resolution: { type: string, minLength: 1 } }
+      responses:
+        '200': { description: Resolved }
+        '400': { $ref: '#/components/responses/BadRequest' }
+
+  /v1/webhooks/{source}:
+    post:
+      tags: [webhooks]
+      summary: Signed counterparty callback
+      description: |
+        Four gates, in order: HMAC signature over the **raw** bytes, replay
+        window on the signed timestamp, delivery-id dedupe, then effect.
+
+        The effect is only ever to *wake* the owning intent. A webhook is a hint
+        that state changed, not a trustworthy statement of what it changed to —
+        the saga re-reads the counterparty and decides for itself. Parked and
+        finished intents are never woken.
+
+        The owning intent is found from the echoed client reference, which we
+        generated as `<intentId>.<step>`.
+      security: []
+      parameters:
+        - name: source
+          in: path
+          required: true
+          schema: { type: string, enum: [msb, broker, custodian] }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object }
+      responses:
+        '200':
+          description: Ingested
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  accepted: { type: integer }
+                  duplicates: { type: integer, description: Redeliveries dropped }
+                  woken: { type: array, items: { type: string } }
+        '401': { description: Signature invalid, missing, or outside the replay window }
+
+components:
+  securitySchemes:
+    operatorToken:
+      type: http
+      scheme: bearer
+      description: Operator bearer token. Compared in constant time.
+
+  parameters:
+    IntentId:
+      name: id
+      in: path
+      required: true
+      schema: { type: string, example: int_01JQ8W3K7M2X5N9P }
+
+  responses:
+    Unauthorized:
+      description: Missing or invalid bearer token
+      content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+    NotFound:
+      description: Not found
+      content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+    BadRequest:
+      description: Validation failed
+      content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+
+  schemas:
+    Currency:
+      type: string
+      enum: [USDC, USDT, USD, HKD, CNH]
+
+    Money:
+      type: object
+      description: |
+        Exact minor units as a string, plus a decimal string for display. Never
+        parse `decimal` for arithmetic — use `minorUnits`.
+      properties:
+        currency: { $ref: '#/components/schemas/Currency' }
+        minorUnits: { type: string, example: '10000000000' }
+        decimal: { type: string, example: '10000.000000' }
+        display: { type: string, example: '10000.000000 USDC' }
+
+    Quantity:
+      type: object
+      properties:
+        ticker: { type: string, example: '0700.HK' }
+        units: { type: string, description: Whole shares, as a string }
+
+    IntentKind:
+      type: string
+      enum: [SPOT_BUY, SPOT_SELL, VAULT_SUBSCRIBE, VAULT_REDEEM, VAULT_DELIVERY]
+
+    IntentState:
+      type: string
+      description: |
+        `NEEDS_MANUAL` is reached whenever an outcome is ambiguous, a break
+        touches the intent, or retries are exhausted. The runner will not touch
+        it again without an explicit operator action.
+      enum: [PENDING, RUNNING, WAITING, COMPLETED, UNWINDING, CANCELLED, NEEDS_MANUAL]
+
+    AssuranceTier:
+      type: string
+      enum: [TIER_0, TIER_1, TIER_2, TIER_3]
+
+    VaultPhase:
+      type: string
+      enum: [Scheduled, Funding, Sealed, Sourcing, Sourced, Deployed, Live, Realized, Claimable, Winding, Concluded, Cancelled, Refunded]
+
+    Intent:
+      type: object
+      properties:
+        id: { type: string }
+        kind: { $ref: '#/components/schemas/IntentKind' }
+        state: { $ref: '#/components/schemas/IntentState' }
+        stage: { type: [string, 'null'], description: Name of the last *completed* saga step }
+        wallet: { type: string }
+        source:
+          type: object
+          description: The chain transaction that created the obligation
+          properties:
+            signature: { type: string }
+            slot: { type: integer }
+            observedAt: { type: string, format: date-time }
+        request:
+          type: object
+          properties:
+            ticker: { type: [string, 'null'] }
+            vaultId: { type: [string, 'null'] }
+            orderId: { type: [string, 'null'] }
+            amount: { $ref: '#/components/schemas/Money' }
+            quantity: { $ref: '#/components/schemas/Quantity' }
+            limitPrice: { $ref: '#/components/schemas/Money' }
+        facts:
+          type: object
+          description: Everything the saga has established so far — references, fills, attestations.
+          additionalProperties: true
+        manualReason: { type: [string, 'null'] }
+        lastError: { type: [object, 'null'] }
+        nextAttemptAt: { type: [string, 'null'], format: date-time }
+        version: { type: integer, description: Optimistic concurrency guard }
+
+    StepAttempt:
+      type: object
+      properties:
+        step: { type: string }
+        attempt: { type: integer }
+        clientRef: { type: [string, 'null'], description: The deterministic reference sent to the counterparty }
+        startedAt: { type: string, format: date-time }
+        finishedAt: { type: [string, 'null'], format: date-time }
+        outcome: { type: [string, 'null'], enum: [OK, WAIT, RETRY, TERMINAL, AMBIGUOUS, null] }
+
+    JournalEntry:
+      type: object
+      properties:
+        id: { type: string }
+        at: { type: string, format: date-time }
+        reference: { type: string, example: broker.buy_filled }
+        memo: { type: string }
+        cash:
+          type: array
+          items:
+            type: object
+            properties:
+              account: { type: string }
+              currency: { $ref: '#/components/schemas/Currency' }
+              amount: { type: string, description: Signed minor units. Debit positive. }
+        positions:
+          type: array
+          items:
+            type: object
+            properties:
+              account: { type: string }
+              ticker: { type: string }
+              units: { type: string }
+
+    Account:
+      type: object
+      properties:
+        wallet: { type: string }
+        status: { type: string, enum: [ACTIVE, SUSPENDED, CLOSED] }
+        verification: { type: [object, 'null'] }
+        beneficiaryRefs: { type: object, additionalProperties: { type: string } }
+
+    BufferSnapshot:
+      type: object
+      properties:
+        currency: { $ref: '#/components/schemas/Currency' }
+        balance: { $ref: '#/components/schemas/Money' }
+        held: { $ref: '#/components/schemas/Money' }
+        available: { $ref: '#/components/schemas/Money' }
+        target: { $ref: '#/components/schemas/Money' }
+        minimum: { $ref: '#/components/schemas/Money' }
+        healthy: { type: boolean }
+
+    ReconBreak:
+      type: object
+      properties:
+        id: { type: string }
+        kind: { type: string, enum: [CASH, POSITION, ORPHAN, STALE] }
+        severity: { type: string, enum: [INFO, WARN, CRITICAL] }
+        scope: { type: string, example: 'positions:0700.HK:backing' }
+        description: { type: string }
+        ledgerValue: { type: [string, 'null'] }
+        chainValue: { type: [string, 'null'] }
+        counterpartyValue: { type: [string, 'null'] }
+        delta: { type: [string, 'null'] }
+        relatedIntentIds: { type: array, items: { type: string } }
+        status: { type: string, enum: [OPEN, ACKNOWLEDGED, RESOLVED] }
+        resolution: { type: [string, 'null'] }
+
+    Readiness:
+      type: object
+      properties:
+        status: { type: string, enum: [ready, degraded] }
+        buffers: { type: array, items: { $ref: '#/components/schemas/BufferSnapshot' } }
+        openCriticalBreaks: { type: integer }
+
+    Error:
+      type: object
+      properties:
+        error:
+          type: object
+          properties:
+            code: { type: string }
+            message: { type: string }
+            disposition: { type: string, enum: [RETRY, TERMINAL, AMBIGUOUS] }
+            context: { type: object, additionalProperties: true }

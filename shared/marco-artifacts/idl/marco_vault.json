@@ -1,0 +1,2702 @@
+{
+  "address": "CgJnDJHjhkMgrkaky3Dp9dD89NzXRMP287bqmgCPMC8q",
+  "metadata": {
+    "name": "marco_vault",
+    "version": "0.1.0",
+    "spec": "0.1.0",
+    "description": "Marco IPO Subscription Vaults — on-chain vault for HK IPO access via USDC"
+  },
+  "docs": [
+    "Marco Pre-IPO Subscription Vaults.",
+    "",
+    "One vault per listing event. USDC is subscribed during a funding",
+    "window, deployed to a licensed broker, and — after the shares list",
+    "and sell — net proceeds return on-chain for pro-rata redemption.",
+    "A single flat protocol fee (default 5%) is taken at settlement."
+  ],
+  "instructions": [
+    {
+      "name": "begin_sourcing",
+      "docs": [
+        "Sealed -> Sourcing. Marks the allocation as requested/pending."
+      ],
+      "discriminator": [
+        34,
+        192,
+        204,
+        252,
+        179,
+        56,
+        84,
+        195
+      ],
+      "accounts": [
+        {
+          "name": "vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "vault.admin",
+                "account": "Vault"
+              },
+              {
+                "kind": "account",
+                "path": "vault.vault_id",
+                "account": "Vault"
+              }
+            ]
+          }
+        },
+        {
+          "name": "admin",
+          "signer": true,
+          "relations": [
+            "vault"
+          ]
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "cancel_vault",
+      "docs": [
+        "Abort a pre-deployment vault: * -> Cancelled. Enables refunds and",
+        "records disclosed unrefundable costs."
+      ],
+      "discriminator": [
+        150,
+        95,
+        141,
+        252,
+        158,
+        53,
+        60,
+        102
+      ],
+      "accounts": [
+        {
+          "name": "vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "vault.admin",
+                "account": "Vault"
+              },
+              {
+                "kind": "account",
+                "path": "vault.vault_id",
+                "account": "Vault"
+              }
+            ]
+          }
+        },
+        {
+          "name": "admin",
+          "signer": true,
+          "relations": [
+            "vault"
+          ]
+        }
+      ],
+      "args": [
+        {
+          "name": "unrefundable_costs",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "claim",
+      "docs": [
+        "Burn claim tokens, receive pro-rata USDC. Allowed in Claimable/Winding."
+      ],
+      "discriminator": [
+        62,
+        198,
+        214,
+        193,
+        213,
+        159,
+        108,
+        210
+      ],
+      "accounts": [
+        {
+          "name": "vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "vault.admin",
+                "account": "Vault"
+              },
+              {
+                "kind": "account",
+                "path": "vault.vault_id",
+                "account": "Vault"
+              }
+            ]
+          }
+        },
+        {
+          "name": "buyer_state",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  98,
+                  117,
+                  121,
+                  101,
+                  114
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "vault"
+              },
+              {
+                "kind": "account",
+                "path": "claimant"
+              }
+            ]
+          }
+        },
+        {
+          "name": "share_mint",
+          "writable": true
+        },
+        {
+          "name": "vault_usdc",
+          "writable": true
+        },
+        {
+          "name": "claimant_shares",
+          "writable": true
+        },
+        {
+          "name": "claimant_usdc",
+          "writable": true
+        },
+        {
+          "name": "claimant",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        }
+      ],
+      "args": [
+        {
+          "name": "shares_amount",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "conclude",
+      "docs": [
+        "Winding/Claimable -> Concluded. Only after the close-out date. Terminal."
+      ],
+      "discriminator": [
+        161,
+        36,
+        142,
+        3,
+        218,
+        237,
+        20,
+        172
+      ],
+      "accounts": [
+        {
+          "name": "vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "vault.admin",
+                "account": "Vault"
+              },
+              {
+                "kind": "account",
+                "path": "vault.vault_id",
+                "account": "Vault"
+              }
+            ]
+          }
+        },
+        {
+          "name": "admin",
+          "signer": true,
+          "relations": [
+            "vault"
+          ]
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "confirm_allocation",
+      "docs": [
+        "Sourcing -> Sourced. Records the confirmed deployable allocation;",
+        "the remainder becomes refundable at redemption."
+      ],
+      "discriminator": [
+        98,
+        178,
+        91,
+        122,
+        65,
+        38,
+        56,
+        59
+      ],
+      "accounts": [
+        {
+          "name": "vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "vault.admin",
+                "account": "Vault"
+              },
+              {
+                "kind": "account",
+                "path": "vault.vault_id",
+                "account": "Vault"
+              }
+            ]
+          }
+        },
+        {
+          "name": "admin",
+          "signer": true,
+          "relations": [
+            "vault"
+          ]
+        }
+      ],
+      "args": [
+        {
+          "name": "deployable_amount",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "create_share_metadata",
+      "docs": [
+        "Attach Metaplex token metadata to the vault's claim mint so wallets show",
+        "a name and symbol. Safe on a mint that already has supply; reads the",
+        "vault without writing it. Admin only."
+      ],
+      "discriminator": [
+        176,
+        243,
+        233,
+        202,
+        218,
+        168,
+        53,
+        158
+      ],
+      "accounts": [
+        {
+          "name": "vault",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "vault.admin",
+                "account": "Vault"
+              },
+              {
+                "kind": "account",
+                "path": "vault.vault_id",
+                "account": "Vault"
+              }
+            ]
+          }
+        },
+        {
+          "name": "share_mint"
+        },
+        {
+          "name": "metadata",
+          "docs": [
+            "itself is created and owned by Metaplex during the CPI."
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  109,
+                  101,
+                  116,
+                  97,
+                  100,
+                  97,
+                  116,
+                  97
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "token_metadata_program"
+              },
+              {
+                "kind": "account",
+                "path": "share_mint"
+              }
+            ],
+            "program": {
+              "kind": "account",
+              "path": "token_metadata_program"
+            }
+          }
+        },
+        {
+          "name": "admin",
+          "writable": true,
+          "signer": true,
+          "relations": [
+            "vault"
+          ]
+        },
+        {
+          "name": "token_metadata_program",
+          "address": "metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s"
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        },
+        {
+          "name": "rent",
+          "address": "SysvarRent111111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "name",
+          "type": "string"
+        },
+        {
+          "name": "symbol",
+          "type": "string"
+        },
+        {
+          "name": "uri",
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "name": "deploy_capital",
+      "docs": [
+        "Sourced -> Deployed (partial deploys allowed). Sends USDC to the",
+        "immutable broker destination, capped to the confirmed allocation."
+      ],
+      "discriminator": [
+        233,
+        143,
+        38,
+        229,
+        114,
+        162,
+        34,
+        22
+      ],
+      "accounts": [
+        {
+          "name": "vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "vault.admin",
+                "account": "Vault"
+              },
+              {
+                "kind": "account",
+                "path": "vault.vault_id",
+                "account": "Vault"
+              }
+            ]
+          }
+        },
+        {
+          "name": "vault_usdc",
+          "writable": true
+        },
+        {
+          "name": "destination",
+          "docs": [
+            "The broker destination — must equal the immutable account fixed at creation."
+          ],
+          "writable": true
+        },
+        {
+          "name": "admin_or_operator",
+          "signer": true
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        }
+      ],
+      "args": [
+        {
+          "name": "amount",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "deposit",
+      "docs": [
+        "Subscribe USDC. Partial-fill up to the cap and the per-address",
+        "limit; unfilled USDC never leaves the depositor's wallet. Mints",
+        "claim tokens 1:1 with accepted USDC."
+      ],
+      "discriminator": [
+        242,
+        35,
+        198,
+        137,
+        82,
+        225,
+        242,
+        182
+      ],
+      "accounts": [
+        {
+          "name": "vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "vault.admin",
+                "account": "Vault"
+              },
+              {
+                "kind": "account",
+                "path": "vault.vault_id",
+                "account": "Vault"
+              }
+            ]
+          }
+        },
+        {
+          "name": "buyer_state",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  98,
+                  117,
+                  121,
+                  101,
+                  114
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "vault"
+              },
+              {
+                "kind": "account",
+                "path": "depositor"
+              }
+            ]
+          }
+        },
+        {
+          "name": "share_mint",
+          "writable": true
+        },
+        {
+          "name": "depositor_usdc",
+          "writable": true
+        },
+        {
+          "name": "vault_usdc",
+          "writable": true
+        },
+        {
+          "name": "depositor_shares",
+          "writable": true
+        },
+        {
+          "name": "depositor",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "amount",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "elect_delivery",
+      "docs": [
+        "While Live and within the election window: pay the protocol fee in",
+        "USDC, burn claim tokens, and record a real-share delivery entitlement",
+        "for off-chain settlement. Opts these tokens out of cash redemption."
+      ],
+      "discriminator": [
+        229,
+        156,
+        140,
+        31,
+        195,
+        170,
+        85,
+        139
+      ],
+      "accounts": [
+        {
+          "name": "vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "vault.admin",
+                "account": "Vault"
+              },
+              {
+                "kind": "account",
+                "path": "vault.vault_id",
+                "account": "Vault"
+              }
+            ]
+          }
+        },
+        {
+          "name": "buyer_state",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  98,
+                  117,
+                  121,
+                  101,
+                  114
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "vault"
+              },
+              {
+                "kind": "account",
+                "path": "holder"
+              }
+            ]
+          }
+        },
+        {
+          "name": "share_mint",
+          "writable": true
+        },
+        {
+          "name": "holder_shares",
+          "writable": true
+        },
+        {
+          "name": "holder",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        }
+      ],
+      "args": [
+        {
+          "name": "shares_amount",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "freeze_deposits",
+      "docs": [
+        "Freeze or unfreeze deposits. Admin only."
+      ],
+      "discriminator": [
+        247,
+        191,
+        178,
+        18,
+        206,
+        243,
+        133,
+        118
+      ],
+      "accounts": [
+        {
+          "name": "vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "vault.admin",
+                "account": "Vault"
+              },
+              {
+                "kind": "account",
+                "path": "vault.vault_id",
+                "account": "Vault"
+              }
+            ]
+          }
+        },
+        {
+          "name": "admin",
+          "signer": true,
+          "relations": [
+            "vault"
+          ]
+        }
+      ],
+      "args": [
+        {
+          "name": "frozen",
+          "type": "bool"
+        }
+      ]
+    },
+    {
+      "name": "initialize_vault",
+      "docs": [
+        "Create a vault. PDA seeds: [b\"vault\", admin, vault_id].",
+        "`deposit_destination` (the broker USDC account) is fixed here forever."
+      ],
+      "discriminator": [
+        48,
+        191,
+        163,
+        44,
+        71,
+        129,
+        63,
+        164
+      ],
+      "accounts": [
+        {
+          "name": "vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "admin"
+              },
+              {
+                "kind": "arg",
+                "path": "p.vault_id"
+              }
+            ]
+          }
+        },
+        {
+          "name": "share_mint",
+          "docs": [
+            "Claim-token mint, 6 decimals to match USDC. Mint authority is the",
+            "vault PDA so only the program can mint/burn. The vault PDA is also",
+            "the freeze authority — that is what locks claim tokens in holders'",
+            "wallets, and it means no external key can ever freeze or thaw them."
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  115,
+                  104,
+                  97,
+                  114,
+                  101,
+                  95,
+                  109,
+                  105,
+                  110,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "vault"
+              }
+            ]
+          }
+        },
+        {
+          "name": "vault_usdc",
+          "docs": [
+            "The vault's USDC token account (owned by the vault PDA)."
+          ]
+        },
+        {
+          "name": "deposit_destination",
+          "docs": [
+            "IMMUTABLE broker/SPV USDC account. Only its key is stored; capital",
+            "can only ever be deployed here."
+          ]
+        },
+        {
+          "name": "admin",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "operator"
+        },
+        {
+          "name": "treasury"
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        },
+        {
+          "name": "rent",
+          "address": "SysvarRent111111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "params",
+          "type": {
+            "defined": {
+              "name": "VaultParams"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "mark_listed",
+      "docs": [
+        "Deployed -> Live. Records that the security has listed, the real",
+        "share allocation, and opens the share-delivery election window."
+      ],
+      "discriminator": [
+        208,
+        79,
+        227,
+        202,
+        104,
+        117,
+        119,
+        2
+      ],
+      "accounts": [
+        {
+          "name": "vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "vault.admin",
+                "account": "Vault"
+              },
+              {
+                "kind": "account",
+                "path": "vault.vault_id",
+                "account": "Vault"
+              }
+            ]
+          }
+        },
+        {
+          "name": "admin",
+          "signer": true,
+          "relations": [
+            "vault"
+          ]
+        }
+      ],
+      "args": [
+        {
+          "name": "shares_allocated",
+          "type": "u64"
+        },
+        {
+          "name": "election_period_secs",
+          "type": "i64"
+        }
+      ]
+    },
+    {
+      "name": "mark_realized",
+      "docs": [
+        "Live -> Realized. Records gross sale proceeds (informational)."
+      ],
+      "discriminator": [
+        58,
+        2,
+        43,
+        133,
+        24,
+        185,
+        33,
+        147
+      ],
+      "accounts": [
+        {
+          "name": "vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "vault.admin",
+                "account": "Vault"
+              },
+              {
+                "kind": "account",
+                "path": "vault.vault_id",
+                "account": "Vault"
+              }
+            ]
+          }
+        },
+        {
+          "name": "admin",
+          "signer": true,
+          "relations": [
+            "vault"
+          ]
+        }
+      ],
+      "args": [
+        {
+          "name": "gross_proceeds",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "open_funding",
+      "docs": [
+        "Scheduled -> Funding. Opens the subscription window."
+      ],
+      "discriminator": [
+        255,
+        94,
+        231,
+        132,
+        50,
+        44,
+        163,
+        83
+      ],
+      "accounts": [
+        {
+          "name": "vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "vault.admin",
+                "account": "Vault"
+              },
+              {
+                "kind": "account",
+                "path": "vault.vault_id",
+                "account": "Vault"
+              }
+            ]
+          }
+        },
+        {
+          "name": "admin",
+          "signer": true,
+          "relations": [
+            "vault"
+          ]
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "refund",
+      "docs": [
+        "Refund a cancelled vault: burn claim tokens, receive principal less",
+        "pro-rata unrefundable costs."
+      ],
+      "discriminator": [
+        2,
+        96,
+        183,
+        251,
+        63,
+        208,
+        46,
+        46
+      ],
+      "accounts": [
+        {
+          "name": "vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "vault.admin",
+                "account": "Vault"
+              },
+              {
+                "kind": "account",
+                "path": "vault.vault_id",
+                "account": "Vault"
+              }
+            ]
+          }
+        },
+        {
+          "name": "buyer_state",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  98,
+                  117,
+                  121,
+                  101,
+                  114
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "vault"
+              },
+              {
+                "kind": "account",
+                "path": "holder"
+              }
+            ]
+          }
+        },
+        {
+          "name": "share_mint",
+          "writable": true
+        },
+        {
+          "name": "vault_usdc",
+          "writable": true
+        },
+        {
+          "name": "holder_shares",
+          "writable": true
+        },
+        {
+          "name": "holder_usdc",
+          "writable": true
+        },
+        {
+          "name": "holder",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        }
+      ],
+      "args": [
+        {
+          "name": "shares_amount",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "seal_funding",
+      "docs": [
+        "Funding -> Sealed. Closes the subscription window (deadline or manual)."
+      ],
+      "discriminator": [
+        142,
+        8,
+        204,
+        196,
+        129,
+        57,
+        65,
+        52
+      ],
+      "accounts": [
+        {
+          "name": "vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "vault.admin",
+                "account": "Vault"
+              },
+              {
+                "kind": "account",
+                "path": "vault.vault_id",
+                "account": "Vault"
+              }
+            ]
+          }
+        },
+        {
+          "name": "admin",
+          "signer": true,
+          "relations": [
+            "vault"
+          ]
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "set_fee_timing",
+      "docs": [
+        "Charge the protocol fee at redemption (mint gross) instead of at deposit",
+        "(mint net). Admin only, and only before the first deposit."
+      ],
+      "discriminator": [
+        154,
+        27,
+        199,
+        126,
+        178,
+        222,
+        28,
+        128
+      ],
+      "accounts": [
+        {
+          "name": "vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "vault.admin",
+                "account": "Vault"
+              },
+              {
+                "kind": "account",
+                "path": "vault.vault_id",
+                "account": "Vault"
+              }
+            ]
+          }
+        },
+        {
+          "name": "admin",
+          "signer": true,
+          "relations": [
+            "vault"
+          ]
+        }
+      ],
+      "args": [
+        {
+          "name": "fee_at_exit",
+          "type": "bool"
+        }
+      ]
+    },
+    {
+      "name": "set_funding_deadline",
+      "docs": [
+        "Extend the subscription window's deadline. Admin only, only while the",
+        "vault is still Funding, and only to a future timestamp."
+      ],
+      "discriminator": [
+        131,
+        35,
+        104,
+        124,
+        213,
+        97,
+        236,
+        254
+      ],
+      "accounts": [
+        {
+          "name": "vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "vault.admin",
+                "account": "Vault"
+              },
+              {
+                "kind": "account",
+                "path": "vault.vault_id",
+                "account": "Vault"
+              }
+            ]
+          }
+        },
+        {
+          "name": "admin",
+          "signer": true,
+          "relations": [
+            "vault"
+          ]
+        }
+      ],
+      "args": [
+        {
+          "name": "new_deadline",
+          "type": "i64"
+        }
+      ]
+    },
+    {
+      "name": "set_transfer_lock",
+      "docs": [
+        "Lock or unlock claim tokens in holders' wallets. Locked by default:",
+        "tokens are frozen on mint and can only be burned back to the vault.",
+        "Clearing the flag stops new freezes; existing accounts still need",
+        "`unlock_shares`. Admin only."
+      ],
+      "discriminator": [
+        47,
+        4,
+        176,
+        107,
+        39,
+        133,
+        142,
+        67
+      ],
+      "accounts": [
+        {
+          "name": "vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "vault.admin",
+                "account": "Vault"
+              },
+              {
+                "kind": "account",
+                "path": "vault.vault_id",
+                "account": "Vault"
+              }
+            ]
+          }
+        },
+        {
+          "name": "admin",
+          "signer": true,
+          "relations": [
+            "vault"
+          ]
+        }
+      ],
+      "args": [
+        {
+          "name": "locked",
+          "type": "bool"
+        }
+      ]
+    },
+    {
+      "name": "settle",
+      "docs": [
+        "Realized -> Claimable. Records net USDC returned, computes the flat",
+        "fee, and sets the redeemable balance. Opens redemption."
+      ],
+      "discriminator": [
+        175,
+        42,
+        185,
+        87,
+        144,
+        131,
+        102,
+        212
+      ],
+      "accounts": [
+        {
+          "name": "vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "vault.admin",
+                "account": "Vault"
+              },
+              {
+                "kind": "account",
+                "path": "vault.vault_id",
+                "account": "Vault"
+              }
+            ]
+          }
+        },
+        {
+          "name": "vault_usdc"
+        },
+        {
+          "name": "admin",
+          "signer": true,
+          "relations": [
+            "vault"
+          ]
+        }
+      ],
+      "args": [
+        {
+          "name": "net_amount",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "sweep_fee",
+      "docs": [
+        "Sweep collected protocol fees to the treasury. Bounded by fees_collected."
+      ],
+      "discriminator": [
+        13,
+        53,
+        93,
+        89,
+        43,
+        177,
+        127,
+        31
+      ],
+      "accounts": [
+        {
+          "name": "vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "vault.admin",
+                "account": "Vault"
+              },
+              {
+                "kind": "account",
+                "path": "vault.vault_id",
+                "account": "Vault"
+              }
+            ]
+          }
+        },
+        {
+          "name": "vault_usdc",
+          "writable": true
+        },
+        {
+          "name": "treasury_usdc",
+          "docs": [
+            "Must be a USDC account owned by the vault's treasury. `has_one =",
+            "treasury` only validates the `treasury` account below — it says",
+            "nothing about this token account, so the ownership constraint has to",
+            "be stated explicitly or fees could be swept anywhere."
+          ],
+          "writable": true
+        },
+        {
+          "name": "treasury",
+          "relations": [
+            "vault"
+          ]
+        },
+        {
+          "name": "admin",
+          "signer": true,
+          "relations": [
+            "vault"
+          ]
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        }
+      ],
+      "args": [
+        {
+          "name": "amount",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "unlock_shares",
+      "docs": [
+        "Thaw one holder's claim-token account once the transfer lock has",
+        "been lifted. Permissionless — it only works after admin unlocks."
+      ],
+      "discriminator": [
+        66,
+        248,
+        156,
+        242,
+        54,
+        2,
+        176,
+        160
+      ],
+      "accounts": [
+        {
+          "name": "vault",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "vault.admin",
+                "account": "Vault"
+              },
+              {
+                "kind": "account",
+                "path": "vault.vault_id",
+                "account": "Vault"
+              }
+            ]
+          }
+        },
+        {
+          "name": "share_mint"
+        },
+        {
+          "name": "holder_shares",
+          "docs": [
+            "The holder account to thaw. Constrained to this vault's claim mint,",
+            "so the instruction can never touch an unrelated token account."
+          ],
+          "writable": true
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "update_operator",
+      "docs": [
+        "Rotate the operator wallet. Admin only."
+      ],
+      "discriminator": [
+        183,
+        158,
+        123,
+        149,
+        124,
+        150,
+        45,
+        226
+      ],
+      "accounts": [
+        {
+          "name": "vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "vault.admin",
+                "account": "Vault"
+              },
+              {
+                "kind": "account",
+                "path": "vault.vault_id",
+                "account": "Vault"
+              }
+            ]
+          }
+        },
+        {
+          "name": "admin",
+          "signer": true,
+          "relations": [
+            "vault"
+          ]
+        }
+      ],
+      "args": [
+        {
+          "name": "new_operator",
+          "type": "pubkey"
+        }
+      ]
+    },
+    {
+      "name": "wind_down",
+      "docs": [
+        "Claimable -> Winding. Marks the bulk-redeemed residual window."
+      ],
+      "discriminator": [
+        108,
+        63,
+        202,
+        124,
+        241,
+        98,
+        53,
+        50
+      ],
+      "accounts": [
+        {
+          "name": "vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "vault.admin",
+                "account": "Vault"
+              },
+              {
+                "kind": "account",
+                "path": "vault.vault_id",
+                "account": "Vault"
+              }
+            ]
+          }
+        },
+        {
+          "name": "admin",
+          "signer": true,
+          "relations": [
+            "vault"
+          ]
+        }
+      ],
+      "args": []
+    }
+  ],
+  "accounts": [
+    {
+      "name": "BuyerState",
+      "discriminator": [
+        196,
+        226,
+        50,
+        172,
+        9,
+        123,
+        201,
+        250
+      ]
+    },
+    {
+      "name": "Vault",
+      "discriminator": [
+        211,
+        8,
+        232,
+        43,
+        2,
+        152,
+        117,
+        119
+      ]
+    }
+  ],
+  "events": [
+    {
+      "name": "ClaimMade",
+      "discriminator": [
+        46,
+        137,
+        105,
+        193,
+        40,
+        75,
+        104,
+        209
+      ]
+    },
+    {
+      "name": "DeliveryElected",
+      "discriminator": [
+        169,
+        176,
+        1,
+        203,
+        97,
+        100,
+        164,
+        140
+      ]
+    },
+    {
+      "name": "DepositMade",
+      "discriminator": [
+        210,
+        201,
+        130,
+        183,
+        244,
+        203,
+        155,
+        199
+      ]
+    },
+    {
+      "name": "RefundMade",
+      "discriminator": [
+        16,
+        154,
+        174,
+        197,
+        137,
+        92,
+        176,
+        1
+      ]
+    }
+  ],
+  "errors": [
+    {
+      "code": 6000,
+      "name": "InvalidPhase",
+      "msg": "Vault is not in the required phase for this operation"
+    },
+    {
+      "code": 6001,
+      "name": "FundingNotStarted",
+      "msg": "Subscription window is not open yet"
+    },
+    {
+      "code": 6002,
+      "name": "FundingClosed",
+      "msg": "Subscription window has closed"
+    },
+    {
+      "code": 6003,
+      "name": "DeadlineInPast",
+      "msg": "New funding deadline must be in the future"
+    },
+    {
+      "code": 6004,
+      "name": "DepositsFrozen",
+      "msg": "Deposits are currently frozen by admin"
+    },
+    {
+      "code": 6005,
+      "name": "ZeroDeposit",
+      "msg": "Deposit amount must be greater than zero"
+    },
+    {
+      "code": 6006,
+      "name": "BelowMinimum",
+      "msg": "Deposit is below the minimum deposit for this vault"
+    },
+    {
+      "code": 6007,
+      "name": "AddressLimitReached",
+      "msg": "Address has reached its per-wallet deposit limit"
+    },
+    {
+      "code": 6008,
+      "name": "CapFull",
+      "msg": "Vault deposit cap is full"
+    },
+    {
+      "code": 6009,
+      "name": "UnauthorizedAdmin",
+      "msg": "Unauthorized — only admin can perform this action"
+    },
+    {
+      "code": 6010,
+      "name": "UnauthorizedOperator",
+      "msg": "Unauthorized — only admin or operator can perform this action"
+    },
+    {
+      "code": 6011,
+      "name": "WrongDestination",
+      "msg": "Deploy destination does not match the vault's immutable broker account"
+    },
+    {
+      "code": 6012,
+      "name": "ExceedsDeployable",
+      "msg": "Deploy amount exceeds the confirmed deployable allocation"
+    },
+    {
+      "code": 6013,
+      "name": "AllocationExceedsDeposits",
+      "msg": "Confirmed allocation exceeds subscribed capital"
+    },
+    {
+      "code": 6014,
+      "name": "ZeroSettlement",
+      "msg": "Settlement amount must be greater than zero"
+    },
+    {
+      "code": 6015,
+      "name": "ZeroRedemption",
+      "msg": "Redemption amount must be greater than zero"
+    },
+    {
+      "code": 6016,
+      "name": "InsufficientShares",
+      "msg": "Insufficient claim tokens for this action"
+    },
+    {
+      "code": 6017,
+      "name": "NoRedeemableAmount",
+      "msg": "No redeemable amount is set"
+    },
+    {
+      "code": 6018,
+      "name": "FeeSweepExceedsCollected",
+      "msg": "Fee sweep amount exceeds collected fees"
+    },
+    {
+      "code": 6019,
+      "name": "VaultIdTooLong",
+      "msg": "Vault ID too long (max 64 characters)"
+    },
+    {
+      "code": 6020,
+      "name": "FeeTooHigh",
+      "msg": "Fee exceeds the maximum allowed (20% = 2000 bps)"
+    },
+    {
+      "code": 6021,
+      "name": "UnrefundableExceedsDeposits",
+      "msg": "Unrefundable costs exceed subscribed capital"
+    },
+    {
+      "code": 6022,
+      "name": "CloseOutNotReached",
+      "msg": "Close-out date has not been reached yet"
+    },
+    {
+      "code": 6023,
+      "name": "InvalidParameter",
+      "msg": "Invalid parameter supplied at initialization"
+    },
+    {
+      "code": 6024,
+      "name": "ElectionClosed",
+      "msg": "Share-delivery election window is closed"
+    },
+    {
+      "code": 6025,
+      "name": "ElectionStillOpen",
+      "msg": "Share-delivery election window is still open"
+    },
+    {
+      "code": 6026,
+      "name": "AllocationNotSet",
+      "msg": "Share allocation has not been recorded for this vault"
+    },
+    {
+      "code": 6027,
+      "name": "TransferLockActive",
+      "msg": "Claim tokens are still locked for this vault"
+    },
+    {
+      "code": 6028,
+      "name": "TransferLockInactive",
+      "msg": "Claim tokens are already unlocked for this vault"
+    },
+    {
+      "code": 6029,
+      "name": "NoCashCohort",
+      "msg": "No cash cohort remains — every holder elected share delivery"
+    },
+    {
+      "code": 6030,
+      "name": "FeeTimingLocked",
+      "msg": "Fee timing can only be set before any deposits are made"
+    },
+    {
+      "code": 6031,
+      "name": "Overflow",
+      "msg": "Arithmetic overflow"
+    }
+  ],
+  "types": [
+    {
+      "name": "BuyerState",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "bump",
+            "docs": [
+              "PDA bump."
+            ],
+            "type": "u8"
+          },
+          {
+            "name": "vault",
+            "docs": [
+              "The vault this record belongs to."
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "depositor",
+            "docs": [
+              "The depositor wallet."
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "deposit_amount",
+            "docs": [
+              "Cumulative GROSS USDC paid in by this address."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "shares_minted",
+            "docs": [
+              "Cumulative claim tokens minted to this address. Entry-fee vault: the NET",
+              "(`deposit_amount` less the entry fee). Exit-fee vault: equal to",
+              "`deposit_amount` (minted 1:1 with the gross; the fee comes off at exit)."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "shares_redeemed",
+            "docs": [
+              "Claim tokens redeemed by this address."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "usdc_redeemed",
+            "docs": [
+              "USDC received from redemptions."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "usdc_refunded",
+            "docs": [
+              "USDC received from cancellation refunds."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "shares_delivered",
+            "docs": [
+              "Claim tokens this address burned to elect share delivery."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "underlying_delivered",
+            "docs": [
+              "Real underlying shares owed to this address from delivery elections.",
+              "Off-chain settlement (broker -> holder brokerage account) reconciles",
+              "against this figure."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "entry_fee_paid",
+            "docs": [
+              "Entry fee this address paid upfront across its deposits. Zero for an",
+              "exit-fee vault, where the fee is instead skimmed from the cash",
+              "redemption and tracked on the vault's `fees_collected`, not per depositor."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "_reserved",
+            "docs": [
+              "Reserved for forward-compatible upgrades."
+            ],
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "ClaimMade",
+      "docs": [
+        "A holder burned claim tokens for their pro-rata USDC."
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "vault",
+            "type": "pubkey"
+          },
+          {
+            "name": "vault_id",
+            "type": "string"
+          },
+          {
+            "name": "claimant",
+            "type": "pubkey"
+          },
+          {
+            "name": "shares_burned",
+            "type": "u64"
+          },
+          {
+            "name": "usdc_paid",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "DeliveryElected",
+      "docs": [
+        "A holder elected real shares over a cash redemption. The broker delivers",
+        "`underlying_shares` off-chain and reconciles against",
+        "`buyer_state.underlying_delivered`."
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "vault",
+            "type": "pubkey"
+          },
+          {
+            "name": "vault_id",
+            "type": "string"
+          },
+          {
+            "name": "holder",
+            "type": "pubkey"
+          },
+          {
+            "name": "shares_burned",
+            "type": "u64"
+          },
+          {
+            "name": "underlying_shares",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "DepositMade",
+      "docs": [
+        "Events for the four holder-initiated instructions.",
+        "",
+        "These exist for the off-chain orchestrator, which creates every intent from",
+        "an observed chain event and never from an HTTP call — the on-chain escrow",
+        "*is* the authorisation. Without a structured event the watcher would have to",
+        "decode raw instruction data and re-read account state to learn what",
+        "happened, which is both fragile and racy.",
+        "",
+        "Admin transitions are deliberately not emitted. The operator submits those",
+        "itself, so it already knows they happened; only holder actions arrive",
+        "unannounced.",
+        "",
+        "Each event carries `vault_id` alongside the vault pubkey. The orchestrator",
+        "keys deals by that string, and including it saves an account read per event",
+        "on a hot polling path.",
+        "A holder subscribed USDC and received claim tokens.",
+        "",
+        "`accepted` is gross (what the cap counts), `subscribed` is net of the",
+        "upfront fee and equals the claim tokens minted. They differ, and conflating",
+        "them mis-states the cap."
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "vault",
+            "type": "pubkey"
+          },
+          {
+            "name": "vault_id",
+            "type": "string"
+          },
+          {
+            "name": "depositor",
+            "type": "pubkey"
+          },
+          {
+            "name": "intent",
+            "docs": [
+              "What the depositor asked for, before cap and per-address clamping."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "accepted",
+            "docs": [
+              "Gross USDC actually pulled from the wallet."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "fee",
+            "docs": [
+              "Upfront protocol fee taken from the gross."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "subscribed",
+            "docs": [
+              "Net subscribed — claim tokens minted, 1:1."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "total_deposits",
+            "type": "u64"
+          },
+          {
+            "name": "auto_sealed",
+            "docs": [
+              "True when this deposit hit the cap and auto-sealed the vault."
+            ],
+            "type": "bool"
+          }
+        ]
+      }
+    },
+    {
+      "name": "RefundMade",
+      "docs": [
+        "A holder burned claim tokens on a cancelled vault for principal less the",
+        "pro-rata share of disclosed unrefundable costs."
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "vault",
+            "type": "pubkey"
+          },
+          {
+            "name": "vault_id",
+            "type": "string"
+          },
+          {
+            "name": "holder",
+            "type": "pubkey"
+          },
+          {
+            "name": "shares_burned",
+            "type": "u64"
+          },
+          {
+            "name": "usdc_paid",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "Vault",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "bump",
+            "docs": [
+              "PDA bump."
+            ],
+            "type": "u8"
+          },
+          {
+            "name": "admin",
+            "docs": [
+              "Controlling authority — expected to be a Squads multisig PDA."
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "operator",
+            "docs": [
+              "Operator wallet — may trigger capital deployment (can equal admin)."
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "treasury",
+            "docs": [
+              "Treasury wallet — receives the protocol fee."
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "deposit_destination",
+            "docs": [
+              "IMMUTABLE broker / SPV USDC account. Deployed capital can only",
+              "ever be sent here. Set once at creation, never mutated."
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "share_mint",
+            "docs": [
+              "SPL mint for the vault claim token."
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "vault_usdc",
+            "docs": [
+              "The vault's own USDC token account."
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "vault_id",
+            "docs": [
+              "Human-readable id, e.g. \"hkex-sdmc-2026-q3\"."
+            ],
+            "type": "string"
+          },
+          {
+            "name": "phase",
+            "docs": [
+              "Current lifecycle phase."
+            ],
+            "type": {
+              "defined": {
+                "name": "VaultPhase"
+              }
+            }
+          },
+          {
+            "name": "frozen",
+            "docs": [
+              "Whether deposits are frozen (emergency control)."
+            ],
+            "type": "bool"
+          },
+          {
+            "name": "transfer_lock",
+            "docs": [
+              "Whether claim tokens are locked in holders' wallets. True from",
+              "creation: every claim-token account is frozen on mint, so tokens",
+              "cannot be transferred or sold on — they can only be burned back",
+              "to the vault via claim/refund/elect_delivery. Admin can lift this",
+              "with `set_transfer_lock(false)`, after which holders call",
+              "`unlock_shares` to thaw their own account."
+            ],
+            "type": "bool"
+          },
+          {
+            "name": "deposit_cap",
+            "docs": [
+              "Maximum USDC the vault will accept (6 decimals)."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "min_deposit",
+            "docs": [
+              "Minimum USDC a single deposit must intend (anti-dust)."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "max_deposit",
+            "docs": [
+              "Maximum cumulative USDC per address (0 = no per-address cap)."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "funding_start",
+            "docs": [
+              "Unix ts the subscription window opens."
+            ],
+            "type": "i64"
+          },
+          {
+            "name": "funding_deadline",
+            "docs": [
+              "Unix ts after which deposits are rejected."
+            ],
+            "type": "i64"
+          },
+          {
+            "name": "close_out_at",
+            "docs": [
+              "Unix ts after which Claimable/Winding can be Concluded."
+            ],
+            "type": "i64"
+          },
+          {
+            "name": "total_deposits",
+            "docs": [
+              "Total USDC subscribed."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "total_shares",
+            "docs": [
+              "Total claim tokens minted (== total_deposits while funding)."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "deployable_amount",
+            "docs": [
+              "Confirmed deployable amount (set at allocation confirmation)."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "undeployed_amount",
+            "docs": [
+              "Subscribed capital NOT deployed (refundable remainder)."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "total_deployed",
+            "docs": [
+              "Total USDC actually sent to the broker destination."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "shares_allocated",
+            "docs": [
+              "Real underlying shares the broker acquired for the vault, recorded",
+              "at listing. Establishes the per-token delivery entitlement:",
+              "a claim token converts to `shares_allocated / total_shares` shares."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "election_deadline",
+            "docs": [
+              "Unix ts the share-delivery election window closes. Elections are",
+              "only accepted while Live and before this deadline."
+            ],
+            "type": "i64"
+          },
+          {
+            "name": "delivered_shares",
+            "docs": [
+              "Claim tokens burned via share-delivery election. These leave the",
+              "cash cohort, so redemption divides only among the remaining tokens."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "gross_proceeds",
+            "docs": [
+              "Gross sale proceeds reported at Realized (informational)."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "settlement_amount",
+            "docs": [
+              "Net USDC returned by the broker after the sale."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "redeemable_amount",
+            "docs": [
+              "USDC available to claimants (settlement balance minus fee)."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "total_redeemed_shares",
+            "docs": [
+              "Claim tokens redeemed so far."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "total_redeemed_usdc",
+            "docs": [
+              "USDC paid out in redemptions so far."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "fee_bps",
+            "docs": [
+              "Protocol fee in basis points (500 = 5.00%). Marco's single on-chain",
+              "take. WHEN it is charged depends on `fee_at_exit`: an entry-fee vault",
+              "deducts it from each deposit as it arrives (so claim tokens are the",
+              "net); an exit-fee vault mints tokens against the gross deposit and",
+              "deducts the fee from the redemption instead. Either way it is the only",
+              "fee — no delivery fee, no upside/performance fee."
+            ],
+            "type": "u16"
+          },
+          {
+            "name": "fees_escrowed",
+            "docs": [
+              "Fee deducted from deposits but not yet earned. Held in the vault and",
+              "refunded with principal if the deal is cancelled before deployment —",
+              "the fee is only earned once capital actually deploys into the deal."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "fees_collected",
+            "docs": [
+              "Fee earned, moved across from `fees_escrowed` when capital deploys.",
+              "Excluded from the redeemable pool and sweepable to the treasury."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "fees_swept",
+            "docs": [
+              "Protocol fee swept to treasury."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "unrefundable_costs",
+            "docs": [
+              "Disclosed unrefundable costs deducted from refunds on cancel."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "total_refunded_usdc",
+            "docs": [
+              "USDC returned to depositors during a cancellation refund."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "fee_at_exit",
+            "docs": [
+              "Fee timing. `false` (the original behaviour, and the default for every",
+              "account created before this field existed — it reads as a zeroed",
+              "reserved byte) charges the fee at deposit: tokens are minted net.",
+              "`true` charges it at redemption: deposits mint 1:1 against the gross,",
+              "and `claim` deducts the fee from the payout. Fixed by `set_fee_timing`",
+              "before the first deposit and never changed after."
+            ],
+            "type": "bool"
+          },
+          {
+            "name": "_reserved",
+            "docs": [
+              "Reserved for forward-compatible upgrades."
+            ],
+            "type": {
+              "array": [
+                "u8",
+                94
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "VaultParams",
+      "docs": [
+        "All vault parameters, frozen at creation. Grouped into one struct so",
+        "the entrypoint stays readable and the client passes a single object."
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "vault_id",
+            "type": "string"
+          },
+          {
+            "name": "deposit_cap",
+            "type": "u64"
+          },
+          {
+            "name": "min_deposit",
+            "type": "u64"
+          },
+          {
+            "name": "max_deposit",
+            "docs": [
+              "0 = no per-address maximum."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "funding_start",
+            "type": "i64"
+          },
+          {
+            "name": "funding_deadline",
+            "type": "i64"
+          },
+          {
+            "name": "close_out_at",
+            "type": "i64"
+          },
+          {
+            "name": "fee_bps",
+            "type": "u16"
+          }
+        ]
+      }
+    },
+    {
+      "name": "VaultPhase",
+      "docs": [
+        "The Marco vault lifecycle. Each phase gates a specific set of",
+        "actions; transitions are driven by admin calls backed by real",
+        "off-chain events (allocation confirmations, listing, sale, cash",
+        "return). Naming is Marco's own — the shape follows the economics",
+        "of a subscription vault, not any one competitor's labels."
+      ],
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Scheduled"
+          },
+          {
+            "name": "Funding"
+          },
+          {
+            "name": "Sealed"
+          },
+          {
+            "name": "Sourcing"
+          },
+          {
+            "name": "Sourced"
+          },
+          {
+            "name": "Deployed"
+          },
+          {
+            "name": "Live"
+          },
+          {
+            "name": "Realized"
+          },
+          {
+            "name": "Claimable"
+          },
+          {
+            "name": "Winding"
+          },
+          {
+            "name": "Concluded"
+          },
+          {
+            "name": "Cancelled"
+          },
+          {
+            "name": "Refunded"
+          }
+        ]
+      }
+    }
+  ]
+}

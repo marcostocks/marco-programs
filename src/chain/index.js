@@ -31,9 +31,11 @@ import {
 import addresses from '../../shared/marco-artifacts/addresses.json';
 import vaultIdl from '../../shared/marco-artifacts/idl/marco_vault.json';
 import spotIdl from '../../shared/marco-artifacts/idl/marco_spot.json';
+import futuresIdl from '../../shared/marco-artifacts/idl/marco_futures.json';
 
 const VAULT_PROGRAM_ID = new PublicKey(addresses.programs.marcoVault);
 const SPOT_PROGRAM_ID = new PublicKey(addresses.programs.marcoSpot);
+const FUTURES_PROGRAM_ID = new PublicKey(addresses.programs.marcoFutures);
 const USDC_MINT = new PublicKey(addresses.usdc.mint);
 const ADMIN = new PublicKey(addresses.wallets.admin);
 const DECIMALS = addresses.usdc.decimals;
@@ -88,6 +90,16 @@ const holdingPda = (market, trader) =>
     [enc('holding'), market.toBuffer(), trader.toBuffer()],
     SPOT_PROGRAM_ID,
   )[0];
+
+/* marco-futures: [config] → [market, config, id] → per-market vaults and positions */
+const futPda = (...seeds) => PublicKey.findProgramAddressSync(seeds, FUTURES_PROGRAM_ID)[0];
+const futConfigPda = () => futPda(enc('config'));
+const futMarketPda = (id) => futPda(enc('market'), futConfigPda().toBuffer(), enc(id));
+const futCollateralPda = (market) => futPda(enc('collateral'), market.toBuffer());
+const futInsurancePda = (market) => futPda(enc('insurance'), market.toBuffer());
+const futPositionPda = (market, owner) => futPda(enc('position'), market.toBuffer(), owner.toBuffer());
+/* Prices are a 1e6 index where 1.0 == $1B of valuation. */
+const fromIndex = (bn) => Number(bn?.toString() ?? 0) / 1e6;
 
 const traderAccountPda = (trader) =>
   PublicKey.findProgramAddressSync(
@@ -300,6 +312,7 @@ class MarcoChain {
     );
     this.program = new Program(vaultIdl, provider);
     this.spotProgram = new Program(spotIdl, provider);
+    this.futuresProgram = new Program(futuresIdl, provider);
 
     return { address: this.address, short: this.shortAddress, kind: chosen.kind };
   }
@@ -310,6 +323,7 @@ class MarcoChain {
     this.publicKey = null;
     this.program = null;
     this.spotProgram = null;
+    this.futuresProgram = null;
   }
 
   /* ---- Reads ------------------------------------------------------------ */
@@ -928,6 +942,153 @@ class MarcoChain {
     return { signature };
   }
 }
+
+/* ========================================================================== */
+/* marco-futures — dated valuation futures. Unlike the vault and spot, this   */
+/* program holds trader margin and is the counterparty; every position change */
+/* is still signed by the trader's own wallet, and fills happen in the same  */
+/* transaction against the vAMM — there is no operator step.                 */
+/* ========================================================================== */
+
+Object.assign(MarcoChain.prototype, {
+  futures() {
+    return this.futuresProgram
+      ?? new Program(futuresIdl, { connection: this.connection, publicKey: PublicKey.default });
+  },
+
+  /** The configured futures market, or null when it is not on this cluster. */
+  futuresMarketId() {
+    return addresses.futures?.marketId ?? null;
+  },
+
+  /** Live market state: the vAMM mark, open interest, insurance and terms. */
+  async getFuturesMarket(id = this.futuresMarketId()) {
+    if (!id) return null;
+    const address = futMarketPda(id);
+    let m;
+    try { m = await this.futures().account.market.fetch(address); } catch { return null; }
+    let insurance = 0;
+    try { insurance = Number((await getAccount(this.connection, futInsurancePda(address))).amount) / 10 ** DECIMALS; }
+    catch { /* unreadable — leave 0 */ }
+    const q = BigInt(m.quoteReserve.toString()), b = BigInt(m.baseReserve.toString());
+    return {
+      id, address: address.toBase58(),
+      status: Object.keys(m.status)[0],
+      mark: Number((q * 1_000_000n) / b) / 1e6,       // $B
+      anchor: fromIndex(m.anchorPrice),
+      quoteReserve: Number(q) / 10 ** DECIMALS,
+      baseReserve: Number(b) / 1e6,
+      maxLeverage: m.maxLeverage,
+      maintenanceMarginBps: m.maintenanceMarginBps,
+      takerFeeBps: m.takerFeeBps,
+      liquidationFeeBps: m.liquidationFeeBps,
+      longOI: fromBase(m.longOpenNotional),
+      shortOI: fromBase(m.shortOpenNotional),
+      totalCollateral: fromBase(m.totalCollateral),
+      positions: Number(m.positionCount.toString()),
+      settlementPrice: fromIndex(m.settlementPrice),
+      expiry: Number(m.expiryTs.toString()) * 1000,
+      insurance,
+    };
+  },
+
+  /** The wallet's position, or null when it has none (or is flat). */
+  async getFuturesPosition(id = this.futuresMarketId()) {
+    if (!this.connected || !id) return null;
+    let p;
+    try { p = await this.futures().account.position.fetch(futPositionPda(futMarketPda(id), this.publicKey)); }
+    catch { return null; }
+    const base = Number(p.baseSize.toString()) / 1e6;
+    return {
+      side: base > 0 ? 'long' : base < 0 ? 'short' : null,
+      base,                                        // $B of valuation exposure, signed
+      margin: fromBase(p.margin),
+      openNotional: fromBase(p.openNotional),
+      realizedPnl: Number(p.realizedPnl.toString()) / 10 ** DECIMALS,
+      updatedAt: Number(p.lastUpdated.toString()) * 1000,
+    };
+  },
+
+  /**
+   * Post margin and open (or add to) a position, in one transaction:
+   * deposit_collateral then open_position. `limitPrice` ($B, 0 to skip)
+   * bounds the average fill against vAMM impact.
+   */
+  async futuresOpen(side, marginUsdc, notionalUsdc, limitPrice = 0, id = this.futuresMarketId()) {
+    this.requireWallet();
+    const market = futMarketPda(id);
+    const position = futPositionPda(market, this.publicKey);
+    const collateralVault = futCollateralPda(market);
+    const ownerUsdc = await getAssociatedTokenAddress(USDC_MINT, this.publicKey);
+    const pre = [];
+    if (marginUsdc > 0) {
+      pre.push(await this.futuresProgram.methods.depositCollateral(toBase(marginUsdc)).accountsPartial({
+        market, position, collateralVault, ownerUsdc, owner: this.publicKey,
+        tokenProgram: TOKEN_PROGRAM_ID, systemProgram: SystemProgram.programId,
+      }).instruction());
+    }
+    const signature = await this.futuresProgram.methods
+      .openPosition(side === 'long', toBase(notionalUsdc), new BN(Math.round(limitPrice * 1e6)))
+      .accountsPartial({
+        config: futConfigPda(), market, position, collateralVault,
+        insuranceVault: futInsurancePda(market), owner: this.publicKey, tokenProgram: TOKEN_PROGRAM_ID,
+      })
+      .preInstructions(pre)
+      .rpc();
+    return { signature };
+  },
+
+  /** Close the whole position; realized PnL settles and the margin is paid back. */
+  async futuresClose(limitPrice = 0, id = this.futuresMarketId()) {
+    this.requireWallet();
+    const market = futMarketPda(id);
+    const signature = await this.futuresProgram.methods
+      .closePosition(new BN(0), new BN(Math.round(limitPrice * 1e6)))
+      .accountsPartial({
+        market, position: futPositionPda(market, this.publicKey),
+        collateralVault: futCollateralPda(market), insuranceVault: futInsurancePda(market),
+        ownerUsdc: await getAssociatedTokenAddress(USDC_MINT, this.publicKey),
+        owner: this.publicKey, tokenProgram: TOKEN_PROGRAM_ID,
+      })
+      .rpc();
+    return { signature };
+  },
+
+  /** Recent transactions on the futures market — the tape, newest first. */
+  async futuresActivity(limit = 20, id = this.futuresMarketId()) {
+    if (!id) return [];
+    const sigs = await this.connection.getSignaturesForAddress(futMarketPda(id), { limit });
+    return sigs.filter((s) => !s.err).map((s) => ({ signature: s.signature, time: (s.blockTime ?? 0) * 1000 }));
+  },
+
+  /**
+   * Every spot holding the wallet has, across all markets, in two RPC calls:
+   * one for its token accounts, one for its Holding records (cost basis).
+   * Returns { ticker: { tokens, avgCost } } for tickers with a balance.
+   */
+  async getSpotPortfolio() {
+    if (!this.connected) return {};
+    const tickers = Object.keys(addresses.spot ?? {});
+    const byMint = new Map(tickers.map((t) => [positionMintPda(marketPda(t)).toBase58(), t]));
+    const out = {};
+    const { value } = await this.connection.getParsedTokenAccountsByOwner(this.publicKey, { programId: TOKEN_PROGRAM_ID });
+    for (const { account } of value) {
+      const info = account.data.parsed.info, t = byMint.get(info.mint);
+      if (t) out[t] = { tokens: Number(info.tokenAmount.uiAmount || 0), avgCost: 0 };
+    }
+    const held = Object.keys(out);
+    if (held.length) {
+      const infos = await this.connection.getMultipleAccountsInfo(held.map((t) => holdingPda(marketPda(t), this.publicKey)));
+      infos.forEach((acc, i) => {
+        if (!acc) return;
+        const h = this.spot().coder.accounts.decode('holding', acc.data);
+        const bought = Number(h.sharesBought.toString());
+        if (bought > 0) out[held[i]].avgCost = Number(h.usdcSpent.toString()) / bought;
+      });
+    }
+    return out;
+  },
+});
 
 const instance = new MarcoChain();
 instance.addresses = addresses;

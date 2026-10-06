@@ -55,6 +55,8 @@ window.MarcoShell={
     const h='#/'+page+(path?'/'+path:'');
     if(location.hash!==h)history.replaceState(null,'',h);
   },
+  walletConnected:()=>realWallet(),
+  demo:DEMO_MODE,          // the recorded tour: frames stay on their simulations
   open:(page,path)=>openEmbed(page,path),
   toast:msg=>toast(msg),
 };
@@ -223,6 +225,7 @@ async function setWallet(on,{fromFrame=false}={}){
     const was=realWallet();
     await disconnectWallet();
     S.wallet=null;S.walletKind=null;
+    restoreDemoBook();
     renderWallet();go(S.page);
     if(was&&!fromFrame)eachEmbed(api=>api.wallet?.(false));
     return toast('Wallet disconnected');
@@ -230,8 +233,9 @@ async function setWallet(on,{fromFrame=false}={}){
   try{
     const w=await connectWallet();
     S.wallet=w.short;S.walletKind=w.kind;
-    renderWallet();go(S.page);
+    renderWallet();
     if(!fromFrame)eachEmbed(api=>api.wallet?.(true));
+    loadChainBook().then(()=>go(S.page));
     // Naming the burner explicitly matters: a key in localStorage must never
     // be mistaken for the user's real wallet.
     toast(w.kind==='dev'
@@ -240,8 +244,11 @@ async function setWallet(on,{fromFrame=false}={}){
   }catch(e){
     // A frame already holds the real wallet; it said so and this is the echo.
     if(fromFrame)return;
-    // No chain bundle is the ordinary case for a single-file page. Fall back
-    // to the simulation rather than dead-ending, but say which one this is.
+    // With the chain bundle present every market is real, so a failed or
+    // declined connection leaves you disconnected — never on a stand-in.
+    if(await chain())return toast(e.message||'Wallet connection failed');
+    // Only with no bundle at all (opened off disk) is the labelled simulation
+    // the honest behaviour: there is no chain for a wallet to talk to.
     S.wallet=DEMO_WALLET;S.walletKind='simulated';
     renderWallet();go(S.page);
     toast(`Simulated wallet · ${DEMO_WALLET} — ${e.message}`);

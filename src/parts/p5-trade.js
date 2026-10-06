@@ -201,7 +201,15 @@ async function syncChainOrders(){
   }
   if(changed&&$('tpane'))renderPane();
 }
-setInterval(()=>{syncChainOrders().catch(()=>{})},15000);
+setInterval(()=>{
+  syncChainOrders().catch(()=>{});
+  // fills land asynchronously (the operator confirms custody), so keep the
+  // book current while the wallet is connected
+  if(S.page==='portfolio'||S.page==='markets')loadChainBook().then(ok=>{
+    if(!ok)return;
+    if(S.page==='portfolio')renderPortfolio();
+  }).catch(()=>{});
+},15000);
 async function exec(amtEl){
   const m=S.mkt,amt=parseFloat(amtEl.value)||0,f=fillPx(),fee=amt*FEE_BPS/1e4;
   if(!(amt>0)||amt>maxAmt()+1e-9)return;
@@ -216,7 +224,7 @@ async function exec(amtEl){
     const c=await chain();
     if(c){
       if(!chainLive()){
-        try{ await connectWallet(); }catch(e){ return toast(e.message) }
+        await setWallet(true);     // the shell's connect: rail, frames and book follow
         if(!chainLive())return;
       }
       const st=await window.MarcoChain.getSpotMarket(m.chainTicker).catch(()=>null);
