@@ -1,0 +1,2304 @@
+{
+  "address": "GCW6Gt86tSVMqEwz6GkVNDWuzivDXCG2bzjp4AS3ztkW",
+  "metadata": {
+    "name": "marco_futures",
+    "version": "0.1.0",
+    "spec": "0.1.0",
+    "description": "Marco Valuation Futures — vAMM-settled leveraged futures on private pre-IPO valuations"
+  },
+  "docs": [
+    "Marco Valuation Futures.",
+    "",
+    "One market per private company (e.g. Moonshot AI). Traders take",
+    "leveraged long/short exposure against a virtual AMM whose price is the",
+    "mark; at the real listing/acquisition the admin posts a settlement price",
+    "and every position settles at that fixed number. It is a DATED future —",
+    "no funding rate.",
+    "",
+    "The program is the counterparty: trader USDC margin lives in a",
+    "program-owned collateral vault, and a per-market insurance fund backstops",
+    "the residual skew. Two invariants keep that safe — solvency by",
+    "construction (never pay out more than a vault holds) and per-market",
+    "isolation (margin, reserves and insurance never cross markets)."
+  ],
+  "instructions": [
+    {
+      "name": "close_position",
+      "docs": [
+        "Close or reduce a position against the vAMM. `base_amount` is the base",
+        "to close (0 == close all); `limit_price` (1e6, 0 to skip) bounds the",
+        "average fill. Realized PnL settles into margin; a full close pays the",
+        "remaining margin back to the trader. Holder-signed."
+      ],
+      "discriminator": [
+        123,
+        134,
+        81,
+        0,
+        49,
+        68,
+        98,
+        98
+      ],
+      "accounts": [
+        {
+          "name": "market",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  109,
+                  97,
+                  114,
+                  107,
+                  101,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "market.config",
+                "account": "Market"
+              },
+              {
+                "kind": "account",
+                "path": "market.market_id",
+                "account": "Market"
+              }
+            ]
+          }
+        },
+        {
+          "name": "position",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  111,
+                  115,
+                  105,
+                  116,
+                  105,
+                  111,
+                  110
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "market"
+              },
+              {
+                "kind": "account",
+                "path": "owner"
+              }
+            ]
+          }
+        },
+        {
+          "name": "collateral_vault",
+          "writable": true
+        },
+        {
+          "name": "insurance_vault",
+          "writable": true
+        },
+        {
+          "name": "owner_usdc",
+          "writable": true
+        },
+        {
+          "name": "owner",
+          "signer": true,
+          "relations": [
+            "position"
+          ]
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        }
+      ],
+      "args": [
+        {
+          "name": "base_amount",
+          "type": "u128"
+        },
+        {
+          "name": "limit_price",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "create_market",
+      "docs": [
+        "Create a valuation-futures market. Seeds the vAMM so the mark equals",
+        "the anchor valuation, and opens the collateral and insurance vaults.",
+        "PDA seeds: [b\"market\", config, market_id]. Admin only."
+      ],
+      "discriminator": [
+        103,
+        226,
+        97,
+        235,
+        200,
+        188,
+        251,
+        254
+      ],
+      "accounts": [
+        {
+          "name": "config",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "market",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  109,
+                  97,
+                  114,
+                  107,
+                  101,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "config"
+              },
+              {
+                "kind": "arg",
+                "path": "p.market_id"
+              }
+            ]
+          }
+        },
+        {
+          "name": "usdc_mint"
+        },
+        {
+          "name": "collateral_vault",
+          "docs": [
+            "Program-owned USDC account holding all trader margin for this market."
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  108,
+                  108,
+                  97,
+                  116,
+                  101,
+                  114,
+                  97,
+                  108
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "market"
+              }
+            ]
+          }
+        },
+        {
+          "name": "insurance_vault",
+          "docs": [
+            "Program-owned USDC account backstopping this market."
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  105,
+                  110,
+                  115,
+                  117,
+                  114,
+                  97,
+                  110,
+                  99,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "market"
+              }
+            ]
+          }
+        },
+        {
+          "name": "admin",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        },
+        {
+          "name": "rent",
+          "address": "SysvarRent111111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "params",
+          "type": {
+            "defined": {
+              "name": "MarketParams"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "deposit_collateral",
+      "docs": [
+        "Deposit USDC margin into the caller's position (created on first",
+        "deposit). Holder-signed."
+      ],
+      "discriminator": [
+        156,
+        131,
+        142,
+        116,
+        146,
+        247,
+        162,
+        120
+      ],
+      "accounts": [
+        {
+          "name": "market",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  109,
+                  97,
+                  114,
+                  107,
+                  101,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "market.config",
+                "account": "Market"
+              },
+              {
+                "kind": "account",
+                "path": "market.market_id",
+                "account": "Market"
+              }
+            ]
+          }
+        },
+        {
+          "name": "position",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  111,
+                  115,
+                  105,
+                  116,
+                  105,
+                  111,
+                  110
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "market"
+              },
+              {
+                "kind": "account",
+                "path": "owner"
+              }
+            ]
+          }
+        },
+        {
+          "name": "collateral_vault",
+          "writable": true
+        },
+        {
+          "name": "owner_usdc",
+          "writable": true
+        },
+        {
+          "name": "owner",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "amount",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "halt_market",
+      "docs": [
+        "Halt or resume a single market (blocks new opens on it). Admin only."
+      ],
+      "discriminator": [
+        193,
+        154,
+        33,
+        69,
+        171,
+        105,
+        36,
+        212
+      ],
+      "accounts": [
+        {
+          "name": "config",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "market",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  109,
+                  97,
+                  114,
+                  107,
+                  101,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "market.config",
+                "account": "Market"
+              },
+              {
+                "kind": "account",
+                "path": "market.market_id",
+                "account": "Market"
+              }
+            ]
+          }
+        },
+        {
+          "name": "admin",
+          "signer": true,
+          "relations": [
+            "config"
+          ]
+        }
+      ],
+      "args": [
+        {
+          "name": "halted",
+          "type": "bool"
+        }
+      ]
+    },
+    {
+      "name": "initialize",
+      "docs": [
+        "Create the protocol config. PDA seeds: [b\"config\"]. Admin only,",
+        "once per deployment."
+      ],
+      "discriminator": [
+        175,
+        175,
+        109,
+        31,
+        13,
+        152,
+        155,
+        237
+      ],
+      "accounts": [
+        {
+          "name": "config",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "admin",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "operator"
+        },
+        {
+          "name": "treasury"
+        },
+        {
+          "name": "usdc_mint",
+          "docs": [
+            "The collateral mint every market will accept (USDC, 6 decimals)."
+          ]
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "liquidate_position",
+      "docs": [
+        "Liquidate an under-collateralised position at the vAMM. Permissionless",
+        "keeper: callable once equity, marked at the vAMM, falls below the",
+        "maintenance margin. Pays the liquidator a reward and returns any",
+        "residual equity to the owner; the insurance fund covers a deficit."
+      ],
+      "discriminator": [
+        187,
+        74,
+        229,
+        149,
+        102,
+        81,
+        221,
+        68
+      ],
+      "accounts": [
+        {
+          "name": "market",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  109,
+                  97,
+                  114,
+                  107,
+                  101,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "market.config",
+                "account": "Market"
+              },
+              {
+                "kind": "account",
+                "path": "market.market_id",
+                "account": "Market"
+              }
+            ]
+          }
+        },
+        {
+          "name": "position",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  111,
+                  115,
+                  105,
+                  116,
+                  105,
+                  111,
+                  110
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "market"
+              },
+              {
+                "kind": "account",
+                "path": "position.owner",
+                "account": "Position"
+              }
+            ]
+          }
+        },
+        {
+          "name": "collateral_vault",
+          "writable": true
+        },
+        {
+          "name": "insurance_vault",
+          "writable": true
+        },
+        {
+          "name": "owner_usdc",
+          "docs": [
+            "The owner's USDC account, to receive any residual equity."
+          ],
+          "writable": true
+        },
+        {
+          "name": "liquidator_usdc",
+          "docs": [
+            "The liquidator's USDC account, to receive the keeper reward."
+          ],
+          "writable": true
+        },
+        {
+          "name": "liquidator",
+          "signer": true
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "open_position",
+      "docs": [
+        "Open or increase a leveraged position against the vAMM. `notional` is",
+        "the USDC exposure to add; `limit_price` (1e6, 0 to skip) bounds the",
+        "average fill. Holder-signed."
+      ],
+      "discriminator": [
+        135,
+        128,
+        47,
+        77,
+        15,
+        152,
+        240,
+        49
+      ],
+      "accounts": [
+        {
+          "name": "config",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "market",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  109,
+                  97,
+                  114,
+                  107,
+                  101,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "market.config",
+                "account": "Market"
+              },
+              {
+                "kind": "account",
+                "path": "market.market_id",
+                "account": "Market"
+              }
+            ]
+          }
+        },
+        {
+          "name": "position",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  111,
+                  115,
+                  105,
+                  116,
+                  105,
+                  111,
+                  110
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "market"
+              },
+              {
+                "kind": "account",
+                "path": "owner"
+              }
+            ]
+          }
+        },
+        {
+          "name": "collateral_vault",
+          "writable": true
+        },
+        {
+          "name": "insurance_vault",
+          "writable": true
+        },
+        {
+          "name": "owner",
+          "signer": true,
+          "relations": [
+            "position"
+          ]
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        }
+      ],
+      "args": [
+        {
+          "name": "is_long",
+          "type": "bool"
+        },
+        {
+          "name": "notional",
+          "type": "u64"
+        },
+        {
+          "name": "limit_price",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "pause",
+      "docs": [
+        "Flip the protocol-wide pause (blocks new opens everywhere). Admin only."
+      ],
+      "discriminator": [
+        211,
+        22,
+        221,
+        251,
+        74,
+        121,
+        193,
+        47
+      ],
+      "accounts": [
+        {
+          "name": "config",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "admin",
+          "signer": true,
+          "relations": [
+            "config"
+          ]
+        }
+      ],
+      "args": [
+        {
+          "name": "paused",
+          "type": "bool"
+        }
+      ]
+    },
+    {
+      "name": "seed_insurance",
+      "docs": [
+        "Fund a market's insurance vault with USDC. Permissionless — anyone can",
+        "strengthen the backstop."
+      ],
+      "discriminator": [
+        192,
+        60,
+        79,
+        233,
+        248,
+        251,
+        215,
+        48
+      ],
+      "accounts": [
+        {
+          "name": "market",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  109,
+                  97,
+                  114,
+                  107,
+                  101,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "market.config",
+                "account": "Market"
+              },
+              {
+                "kind": "account",
+                "path": "market.market_id",
+                "account": "Market"
+              }
+            ]
+          }
+        },
+        {
+          "name": "insurance_vault",
+          "writable": true
+        },
+        {
+          "name": "funder_usdc",
+          "writable": true
+        },
+        {
+          "name": "funder",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        }
+      ],
+      "args": [
+        {
+          "name": "amount",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "set_operator",
+      "docs": [
+        "Rotate the operator (keeper) wallet. Admin only."
+      ],
+      "discriminator": [
+        238,
+        153,
+        101,
+        169,
+        243,
+        131,
+        36,
+        1
+      ],
+      "accounts": [
+        {
+          "name": "config",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "admin",
+          "signer": true,
+          "relations": [
+            "config"
+          ]
+        }
+      ],
+      "args": [
+        {
+          "name": "new_operator",
+          "type": "pubkey"
+        }
+      ]
+    },
+    {
+      "name": "settle_market",
+      "docs": [
+        "Post the final valuation at the real listing/acquisition and move the",
+        "market to Settled. Admin or operator only."
+      ],
+      "discriminator": [
+        193,
+        153,
+        95,
+        216,
+        166,
+        6,
+        144,
+        217
+      ],
+      "accounts": [
+        {
+          "name": "config",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "market",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  109,
+                  97,
+                  114,
+                  107,
+                  101,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "market.config",
+                "account": "Market"
+              },
+              {
+                "kind": "account",
+                "path": "market.market_id",
+                "account": "Market"
+              }
+            ]
+          }
+        },
+        {
+          "name": "authority",
+          "signer": true
+        }
+      ],
+      "args": [
+        {
+          "name": "settlement_price",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "settle_position",
+      "docs": [
+        "Settle one position at the market's final price and pay the owner.",
+        "Permissionless; PnL is computed at the fixed settlement price."
+      ],
+      "discriminator": [
+        33,
+        156,
+        74,
+        218,
+        215,
+        42,
+        112,
+        175
+      ],
+      "accounts": [
+        {
+          "name": "market",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  109,
+                  97,
+                  114,
+                  107,
+                  101,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "market.config",
+                "account": "Market"
+              },
+              {
+                "kind": "account",
+                "path": "market.market_id",
+                "account": "Market"
+              }
+            ]
+          }
+        },
+        {
+          "name": "position",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  111,
+                  115,
+                  105,
+                  116,
+                  105,
+                  111,
+                  110
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "market"
+              },
+              {
+                "kind": "account",
+                "path": "position.owner",
+                "account": "Position"
+              }
+            ]
+          }
+        },
+        {
+          "name": "collateral_vault",
+          "writable": true
+        },
+        {
+          "name": "insurance_vault",
+          "writable": true
+        },
+        {
+          "name": "owner_usdc",
+          "writable": true
+        },
+        {
+          "name": "caller",
+          "signer": true
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "withdraw_collateral",
+      "docs": [
+        "Withdraw free USDC margin — the amount above the position's initial",
+        "margin requirement. Holder-signed."
+      ],
+      "discriminator": [
+        115,
+        135,
+        168,
+        106,
+        139,
+        214,
+        138,
+        150
+      ],
+      "accounts": [
+        {
+          "name": "market",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  109,
+                  97,
+                  114,
+                  107,
+                  101,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "market.config",
+                "account": "Market"
+              },
+              {
+                "kind": "account",
+                "path": "market.market_id",
+                "account": "Market"
+              }
+            ]
+          }
+        },
+        {
+          "name": "position",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  111,
+                  115,
+                  105,
+                  116,
+                  105,
+                  111,
+                  110
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "market"
+              },
+              {
+                "kind": "account",
+                "path": "owner"
+              }
+            ]
+          }
+        },
+        {
+          "name": "collateral_vault",
+          "writable": true
+        },
+        {
+          "name": "owner_usdc",
+          "writable": true
+        },
+        {
+          "name": "owner",
+          "signer": true,
+          "relations": [
+            "position"
+          ]
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        }
+      ],
+      "args": [
+        {
+          "name": "amount",
+          "type": "u64"
+        }
+      ]
+    }
+  ],
+  "accounts": [
+    {
+      "name": "FuturesConfig",
+      "discriminator": [
+        78,
+        225,
+        97,
+        35,
+        230,
+        193,
+        143,
+        194
+      ]
+    },
+    {
+      "name": "Market",
+      "discriminator": [
+        219,
+        190,
+        213,
+        55,
+        0,
+        227,
+        198,
+        154
+      ]
+    },
+    {
+      "name": "Position",
+      "discriminator": [
+        170,
+        188,
+        143,
+        228,
+        122,
+        64,
+        247,
+        208
+      ]
+    }
+  ],
+  "events": [
+    {
+      "name": "CollateralDeposited",
+      "discriminator": [
+        244,
+        62,
+        77,
+        11,
+        135,
+        112,
+        61,
+        96
+      ]
+    },
+    {
+      "name": "CollateralWithdrawn",
+      "discriminator": [
+        51,
+        224,
+        133,
+        106,
+        74,
+        173,
+        72,
+        82
+      ]
+    },
+    {
+      "name": "MarketSettled",
+      "discriminator": [
+        237,
+        212,
+        22,
+        175,
+        201,
+        117,
+        215,
+        99
+      ]
+    },
+    {
+      "name": "PositionClosed",
+      "discriminator": [
+        157,
+        163,
+        227,
+        228,
+        13,
+        97,
+        138,
+        121
+      ]
+    },
+    {
+      "name": "PositionLiquidated",
+      "discriminator": [
+        40,
+        107,
+        90,
+        214,
+        96,
+        30,
+        61,
+        128
+      ]
+    },
+    {
+      "name": "PositionOpened",
+      "discriminator": [
+        237,
+        175,
+        243,
+        230,
+        147,
+        117,
+        101,
+        121
+      ]
+    },
+    {
+      "name": "PositionSettled",
+      "discriminator": [
+        75,
+        100,
+        92,
+        189,
+        245,
+        116,
+        252,
+        221
+      ]
+    }
+  ],
+  "errors": [
+    {
+      "code": 6000,
+      "name": "UnauthorizedAdmin",
+      "msg": "Unauthorized — only the admin can perform this action"
+    },
+    {
+      "code": 6001,
+      "name": "UnauthorizedOperator",
+      "msg": "Unauthorized — only the admin or operator can perform this action"
+    },
+    {
+      "code": 6002,
+      "name": "UnauthorizedOwner",
+      "msg": "Unauthorized — only the position owner can perform this action"
+    },
+    {
+      "code": 6003,
+      "name": "ProtocolPaused",
+      "msg": "Protocol is paused"
+    },
+    {
+      "code": 6004,
+      "name": "InvalidMarketStatus",
+      "msg": "Market is not in the required status for this operation"
+    },
+    {
+      "code": 6005,
+      "name": "MarketIdTooLong",
+      "msg": "Market id too long (max 32 bytes)"
+    },
+    {
+      "code": 6006,
+      "name": "InvalidParameter",
+      "msg": "Invalid parameter supplied"
+    },
+    {
+      "code": 6007,
+      "name": "ZeroAmount",
+      "msg": "Amount must be greater than zero"
+    },
+    {
+      "code": 6008,
+      "name": "InsufficientLiquidity",
+      "msg": "Requested size exceeds available vAMM liquidity"
+    },
+    {
+      "code": 6009,
+      "name": "ExceedsMaxLeverage",
+      "msg": "Resulting leverage exceeds the market maximum"
+    },
+    {
+      "code": 6010,
+      "name": "InsufficientMargin",
+      "msg": "Margin is insufficient for this position"
+    },
+    {
+      "code": 6011,
+      "name": "OpenInterestCapExceeded",
+      "msg": "Open interest cap for this side would be exceeded"
+    },
+    {
+      "code": 6012,
+      "name": "WrongSide",
+      "msg": "Cannot flip sides in one instruction — close the position first"
+    },
+    {
+      "code": 6013,
+      "name": "PositionFlat",
+      "msg": "Position is flat — nothing to close"
+    },
+    {
+      "code": 6014,
+      "name": "CloseExceedsPosition",
+      "msg": "Close size exceeds the open position"
+    },
+    {
+      "code": 6015,
+      "name": "SlippageExceeded",
+      "msg": "Fill price is worse than the caller's limit"
+    },
+    {
+      "code": 6016,
+      "name": "WithdrawBelowMargin",
+      "msg": "Withdrawal would drop the position below its margin requirement"
+    },
+    {
+      "code": 6017,
+      "name": "NothingToWithdraw",
+      "msg": "Nothing available to withdraw"
+    },
+    {
+      "code": 6018,
+      "name": "NotLiquidatable",
+      "msg": "Position is not liquidatable at the current mark"
+    },
+    {
+      "code": 6019,
+      "name": "MarketNotSettled",
+      "msg": "Market is not settled yet"
+    },
+    {
+      "code": 6020,
+      "name": "MarketAlreadySettled",
+      "msg": "Market is already settled"
+    },
+    {
+      "code": 6021,
+      "name": "WrongCollateralVault",
+      "msg": "Collateral vault does not match the market's collateral vault"
+    },
+    {
+      "code": 6022,
+      "name": "WrongInsuranceVault",
+      "msg": "Insurance vault does not match the market's insurance vault"
+    },
+    {
+      "code": 6023,
+      "name": "WrongMint",
+      "msg": "Token mint does not match the market's collateral mint"
+    },
+    {
+      "code": 6024,
+      "name": "MathOverflow",
+      "msg": "Arithmetic overflow"
+    }
+  ],
+  "types": [
+    {
+      "name": "CollateralDeposited",
+      "docs": [
+        "Events for the holder-initiated instructions, mirroring the vault program's",
+        "convention: the off-chain orchestrator builds every intent from an observed",
+        "chain event rather than an HTTP call, so each event carries enough to act on",
+        "without re-reading account state. `market_id` rides alongside the market",
+        "pubkey because the orchestrator keys markets by that string.",
+        "",
+        "Admin transitions (initialize, create_market, halt, settle_market) are not",
+        "emitted — the operator submits those and already knows they happened.",
+        "Liquidation IS emitted: it can be triggered permissionlessly by a third",
+        "party, so it arrives at the orchestrator unannounced otherwise.",
+        "A trader added USDC margin to their position."
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "market",
+            "type": "pubkey"
+          },
+          {
+            "name": "market_id",
+            "type": "string"
+          },
+          {
+            "name": "owner",
+            "type": "pubkey"
+          },
+          {
+            "name": "amount",
+            "type": "u64"
+          },
+          {
+            "name": "margin_after",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "CollateralWithdrawn",
+      "docs": [
+        "A trader withdrew free USDC margin from their position."
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "market",
+            "type": "pubkey"
+          },
+          {
+            "name": "market_id",
+            "type": "string"
+          },
+          {
+            "name": "owner",
+            "type": "pubkey"
+          },
+          {
+            "name": "amount",
+            "type": "u64"
+          },
+          {
+            "name": "margin_after",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "FuturesConfig",
+      "docs": [
+        "Protocol-global config. One per deployment. Holds the authorities and",
+        "the collateral mint; per-market economics (fees, leverage, margin) live",
+        "on each `Market`, seeded from `create_market` params."
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "bump",
+            "docs": [
+              "PDA bump. Seeds: [b\"config\"]."
+            ],
+            "type": "u8"
+          },
+          {
+            "name": "admin",
+            "docs": [
+              "Controlling authority — expected to be a Squads multisig PDA. Can",
+              "create markets, halt, settle, and rotate the operator."
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "operator",
+            "docs": [
+              "Operator wallet — the off-chain keeper. May settle and run",
+              "liquidations; cannot move funds to itself (can equal admin)."
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "treasury",
+            "docs": [
+              "Treasury wallet — reserved for future fee sweeps. In v1 all trading",
+              "fees seed the per-market insurance fund instead."
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "usdc_mint",
+            "docs": [
+              "The one collateral mint every market accepts (USDC, 6 decimals)."
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "paused",
+            "docs": [
+              "Emergency kill-switch. When true, no market accepts new opens."
+            ],
+            "type": "bool"
+          },
+          {
+            "name": "market_count",
+            "docs": [
+              "Number of markets created (monotonic; informational)."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "_reserved",
+            "docs": [
+              "Reserved for forward-compatible upgrades."
+            ],
+            "type": {
+              "array": [
+                "u8",
+                128
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "Market",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "bump",
+            "docs": [
+              "PDA bump. Seeds: [b\"market\", config, market_id]."
+            ],
+            "type": "u8"
+          },
+          {
+            "name": "config",
+            "docs": [
+              "Back-reference to the owning `FuturesConfig`."
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "market_id",
+            "docs": [
+              "Human-readable id, e.g. \"moon-2026\". Max 32 bytes."
+            ],
+            "type": "string"
+          },
+          {
+            "name": "usdc_mint",
+            "docs": [
+              "Collateral mint (USDC), copied from config for local validation."
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "collateral_vault",
+            "docs": [
+              "Program-owned USDC account holding ALL trader margin for this market.",
+              "Owned by the market PDA; only this program can move funds out."
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "insurance_vault",
+            "docs": [
+              "Program-owned USDC account backstopping this market. Seeded by",
+              "`seed_insurance` and fed by trading fees; drawn on to cover payouts",
+              "the collateral vault alone cannot."
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "status",
+            "docs": [
+              "Lifecycle status."
+            ],
+            "type": {
+              "defined": {
+                "name": "MarketStatus"
+              }
+            }
+          },
+          {
+            "name": "base_reserve",
+            "docs": [
+              "Virtual base reserve (signed exposure denominated in base units,",
+              "same 1e6 scale as a price of 1.0). Falls as the pool goes net-long."
+            ],
+            "type": "u128"
+          },
+          {
+            "name": "quote_reserve",
+            "docs": [
+              "Virtual quote reserve (USDC-equivalent depth). Rises as the pool",
+              "takes in long notional. Mark price == quote_reserve / base_reserve."
+            ],
+            "type": "u128"
+          },
+          {
+            "name": "initial_base_reserve",
+            "docs": [
+              "Reserves at creation, retained so net trader exposure and the",
+              "distance travelled from the anchor can be read back."
+            ],
+            "type": "u128"
+          },
+          {
+            "name": "initial_quote_reserve",
+            "type": "u128"
+          },
+          {
+            "name": "anchor_price",
+            "docs": [
+              "The seed valuation index (1e6). Mark price equals this at creation."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "max_leverage",
+            "docs": [
+              "Maximum leverage, e.g. 3 == 3x. Initial margin ratio == 1 / max_leverage."
+            ],
+            "type": "u8"
+          },
+          {
+            "name": "maintenance_margin_bps",
+            "docs": [
+              "Maintenance margin ratio in bps, e.g. 625 == 6.25%. Below this a",
+              "position is liquidatable."
+            ],
+            "type": "u16"
+          },
+          {
+            "name": "taker_fee_bps",
+            "docs": [
+              "Taker fee in bps charged on notional at open and close, e.g. 30 == 0.30%.",
+              "In v1 the whole fee is routed to the insurance vault."
+            ],
+            "type": "u16"
+          },
+          {
+            "name": "liquidation_fee_bps",
+            "docs": [
+              "Liquidation penalty in bps of the liquidated notional, split between",
+              "the liquidator (keeper reward) and the insurance vault."
+            ],
+            "type": "u16"
+          },
+          {
+            "name": "max_oi_notional",
+            "docs": [
+              "Cap on the open notional per side (long and short each). 0 == no cap."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "long_open_notional",
+            "docs": [
+              "Sum of `open_notional` across open long positions."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "short_open_notional",
+            "docs": [
+              "Sum of `open_notional` across open short positions."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "total_collateral",
+            "docs": [
+              "Sum of `margin` across all open positions (accounting mirror; the",
+              "collateral vault balance is the source of truth for solvency)."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "position_count",
+            "docs": [
+              "Open positions in this market (informational)."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "settlement_price",
+            "docs": [
+              "Final settlement price (1e6), 0 until the market is Settled."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "expiry_ts",
+            "docs": [
+              "Informational expected-listing timestamp / dated-expiry fallback."
+            ],
+            "type": "i64"
+          },
+          {
+            "name": "settled_at",
+            "docs": [
+              "When the market settled (0 until then)."
+            ],
+            "type": "i64"
+          },
+          {
+            "name": "created_at",
+            "docs": [
+              "When the market was created."
+            ],
+            "type": "i64"
+          },
+          {
+            "name": "_reserved",
+            "docs": [
+              "Reserved for forward-compatible upgrades."
+            ],
+            "type": {
+              "array": [
+                "u8",
+                128
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "MarketParams",
+      "docs": [
+        "All market parameters, frozen at creation. `quote_reserve` sets the vAMM's",
+        "depth (in USDC-equivalent units); the base reserve is derived so the mark",
+        "price equals `anchor_price` exactly at launch."
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "market_id",
+            "type": "string"
+          },
+          {
+            "name": "anchor_price",
+            "docs": [
+              "Seed valuation index (1e6). e.g. a $12.5B anchor is 12_500_000."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "quote_reserve",
+            "docs": [
+              "vAMM quote-reserve depth (USDC-equivalent). Larger == less slippage."
+            ],
+            "type": "u128"
+          },
+          {
+            "name": "max_leverage",
+            "docs": [
+              "Max leverage, e.g. 3 == 3x."
+            ],
+            "type": "u8"
+          },
+          {
+            "name": "maintenance_margin_bps",
+            "docs": [
+              "Maintenance margin ratio in bps (must be below the initial ratio)."
+            ],
+            "type": "u16"
+          },
+          {
+            "name": "taker_fee_bps",
+            "docs": [
+              "Taker fee in bps on notional, charged at open and close."
+            ],
+            "type": "u16"
+          },
+          {
+            "name": "liquidation_fee_bps",
+            "docs": [
+              "Liquidation penalty in bps of liquidated notional."
+            ],
+            "type": "u16"
+          },
+          {
+            "name": "max_oi_notional",
+            "docs": [
+              "Per-side open-interest cap in USDC notional (0 == uncapped)."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "expiry_ts",
+            "docs": [
+              "Informational expected-listing timestamp / dated-expiry fallback."
+            ],
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "MarketSettled",
+      "docs": [
+        "The market settled: the admin/operator posted the final valuation. No more",
+        "trading; holders settle each position at `settlement_price`."
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "market",
+            "type": "pubkey"
+          },
+          {
+            "name": "market_id",
+            "type": "string"
+          },
+          {
+            "name": "settlement_price",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "MarketStatus",
+      "docs": [
+        "The lifecycle of a single valuation-futures market."
+      ],
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Active"
+          },
+          {
+            "name": "Halted"
+          },
+          {
+            "name": "Settled"
+          }
+        ]
+      }
+    },
+    {
+      "name": "Position",
+      "docs": [
+        "One trader's isolated position in one market. Isolated margin: the",
+        "`margin` here backs only this position and nothing else. A trader holds",
+        "at most one open position per market; increasing adds to it, closing",
+        "reduces it, and flipping sides requires a full close first."
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "bump",
+            "docs": [
+              "PDA bump. Seeds: [b\"position\", market, owner]."
+            ],
+            "type": "u8"
+          },
+          {
+            "name": "market",
+            "docs": [
+              "The market this position trades."
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "owner",
+            "docs": [
+              "The position owner (holder wallet)."
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "margin",
+            "docs": [
+              "USDC collateral committed to this position (6dp). Deposits raise it,",
+              "withdrawals and fees lower it, realized losses consume it and realized",
+              "profits are paid out of the collateral vault (not added here)."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "base_size",
+            "docs": [
+              "Net base exposure (signed: +long, -short). Same 1e6 scale as price."
+            ],
+            "type": "i128"
+          },
+          {
+            "name": "open_notional",
+            "docs": [
+              "Cost basis: cumulative quote (USDC) swapped to build `base_size`.",
+              "For a long this is USDC paid in; for a short, USDC received. PnL is",
+              "measured against this."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "realized_pnl",
+            "docs": [
+              "Lifetime realized PnL for this position (signed), for reporting."
+            ],
+            "type": "i64"
+          },
+          {
+            "name": "last_updated",
+            "docs": [
+              "Unix ts of the last mutation."
+            ],
+            "type": "i64"
+          },
+          {
+            "name": "_reserved",
+            "docs": [
+              "Reserved for forward-compatible upgrades."
+            ],
+            "type": {
+              "array": [
+                "u8",
+                64
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "PositionClosed",
+      "docs": [
+        "A trader closed or reduced a position against the vAMM."
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "market",
+            "type": "pubkey"
+          },
+          {
+            "name": "market_id",
+            "type": "string"
+          },
+          {
+            "name": "owner",
+            "type": "pubkey"
+          },
+          {
+            "name": "base_delta",
+            "docs": [
+              "Base closed on this fill (absolute value)."
+            ],
+            "type": "u128"
+          },
+          {
+            "name": "realized_pnl",
+            "docs": [
+              "Realized PnL on the closed portion (signed, USDC 6dp)."
+            ],
+            "type": "i64"
+          },
+          {
+            "name": "fee",
+            "docs": [
+              "Taker fee routed to the insurance vault."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "payout",
+            "docs": [
+              "USDC paid out to the trader on this close (0 if none was free)."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "mark_price",
+            "docs": [
+              "vAMM mark price after the fill (1e6)."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "base_size_after",
+            "docs": [
+              "Position base size after the fill (signed; 0 when fully closed)."
+            ],
+            "type": "i128"
+          },
+          {
+            "name": "margin_after",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "PositionLiquidated",
+      "docs": [
+        "A position was liquidated (permissionless keeper). The whole position is",
+        "closed at the vAMM; `reward` goes to the liquidator, any remaining equity",
+        "to the owner, and `insurance_cover` is drawn from the insurance fund to",
+        "make the pool whole when the position closed underwater (`bad_debt`)."
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "market",
+            "type": "pubkey"
+          },
+          {
+            "name": "market_id",
+            "type": "string"
+          },
+          {
+            "name": "owner",
+            "type": "pubkey"
+          },
+          {
+            "name": "liquidator",
+            "type": "pubkey"
+          },
+          {
+            "name": "base_closed",
+            "docs": [
+              "Base closed (absolute value; always the full position)."
+            ],
+            "type": "u128"
+          },
+          {
+            "name": "realized_pnl",
+            "docs": [
+              "Realized PnL at liquidation (signed, USDC 6dp)."
+            ],
+            "type": "i64"
+          },
+          {
+            "name": "reward",
+            "docs": [
+              "Keeper reward paid to the liquidator."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "trader_refund",
+            "docs": [
+              "Residual equity returned to the owner (0 when underwater)."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "bad_debt",
+            "docs": [
+              "Equity deficit past the owner's margin (0 when solvent)."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "insurance_cover",
+            "docs": [
+              "USDC drawn from the insurance fund to cover the deficit."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "mark_price",
+            "docs": [
+              "The mark that triggered the liquidation (1e6)."
+            ],
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "PositionOpened",
+      "docs": [
+        "A trader opened or increased a position against the vAMM."
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "market",
+            "type": "pubkey"
+          },
+          {
+            "name": "market_id",
+            "type": "string"
+          },
+          {
+            "name": "owner",
+            "type": "pubkey"
+          },
+          {
+            "name": "is_long",
+            "docs": [
+              "True for a long, false for a short."
+            ],
+            "type": "bool"
+          },
+          {
+            "name": "notional",
+            "docs": [
+              "USDC notional swapped in on this fill."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "base_delta",
+            "docs": [
+              "Base acquired on this fill (absolute value)."
+            ],
+            "type": "u128"
+          },
+          {
+            "name": "fee",
+            "docs": [
+              "Taker fee taken from margin and routed to the insurance vault."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "mark_price",
+            "docs": [
+              "vAMM mark price after the fill (1e6)."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "base_size_after",
+            "docs": [
+              "Position base size after the fill (signed)."
+            ],
+            "type": "i128"
+          },
+          {
+            "name": "margin_after",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "PositionSettled",
+      "docs": [
+        "A holder's position settled at the market's final price."
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "market",
+            "type": "pubkey"
+          },
+          {
+            "name": "market_id",
+            "type": "string"
+          },
+          {
+            "name": "owner",
+            "type": "pubkey"
+          },
+          {
+            "name": "realized_pnl",
+            "docs": [
+              "Realized PnL at the settlement price (signed, USDC 6dp)."
+            ],
+            "type": "i64"
+          },
+          {
+            "name": "payout",
+            "docs": [
+              "USDC paid out to the owner."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "insurance_draw",
+            "docs": [
+              "USDC drawn from the insurance fund to fund the payout."
+            ],
+            "type": "u64"
+          }
+        ]
+      }
+    }
+  ]
+}

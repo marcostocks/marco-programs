@@ -1,0 +1,23 @@
+{
+  "name": "marco-site",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Build tooling for the Marco platform: index.html (spot), apps/preipo (pre-IPO vaults) and apps/futures (valuation futures).",
+  "scripts": {
+    "build": "sh src/build.sh && node src/build-apps.mjs",
+    "build:chain": "node src/build-chain.js",
+    "serve": "node src/serve.js",
+    "build:preipo": "node launch/src/build.mjs",
+    "setup:devnet": "node scripts/devnet/init-spot-markets-devnet.js && node scripts/devnet/init-futures-devnet.js",
+    "operator": "npm --prefix orchestrator run operator:devnet"
+  },
+  "dependencies": {
+    "@coral-xyz/anchor": "^0.31.1",
+    "@solana/spl-token": "^0.4.9",
+    "@solana/web3.js": "^1.98.0"
+  },
+  "devDependencies": {
+    "buffer": "^6.0.3",
+    "esbuild": "^0.24.0"
+  }
+}

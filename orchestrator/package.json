@@ -1,0 +1,39 @@
+{
+  "name": "@marco/orchestrator",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Off-chain orchestration linking Solana intents to the money services provider, executing broker and custodian.",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "dev": "tsx watch --env-file-if-exists=.env src/main.ts",
+    "start": "node --env-file-if-exists=.env dist/main.js",
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "demo": "tsx scripts/demo.ts",
+    "setup:localnet": "tsx scripts/setup-localnet.ts",
+    "setup:devnet": "tsx scripts/setup-devnet.ts",
+    "seed:vault": "tsx scripts/seed-demo-vault.ts",
+    "acceptance": "tsx scripts/acceptance.ts",
+    "prove:devnet": "tsx scripts/prove-devnet.ts",
+    "operator:devnet": "tsx scripts/auto-operator-devnet.ts"
+  },
+  "dependencies": {
+    "@coral-xyz/anchor": "^0.31.1",
+    "@solana/spl-token": "^0.4.15",
+    "@solana/web3.js": "^1.98.4",
+    "fastify": "^5.2.1",
+    "pino": "^9.6.0",
+    "zod": "^3.24.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.5",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.3",
+    "vitest": "^4.1.10"
+  }
+}

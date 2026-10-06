@@ -1,0 +1,30 @@
+
+/* ════════════════════════════ boot ════════════════════════════ */
+
+/* First paint shows the copy, the valuations and the countdowns — everything
+   true without asking anyone. Caps, commitments and phases arrive from the
+   chain a moment later; until then a chain-backed card renders "—" rather than
+   a seeded figure it is about to replace. */
+go(fromHash());
+
+(async()=>{
+  await syncAll();
+  render();                            // the chain figures
+  if(chainLive())await refreshPosition(cur());
+  // Sequential, and after the first paint — the ticker is the least urgent
+  // thing on the page and the public RPC throttles a burst.
+  if(await refreshAllDeposits())renderTicker();
+  render();
+  const dead=VAULTS.filter(v=>v.chainId&&!v.live).map(v=>v.chainId);
+  if(dead.length)
+    toast(`Not on ${CLUSTER}: ${dead.join(', ')} — those cards show illustrative figures.`);
+})();
+
+// A handle for the console, and for the acceptance run to poke at.
+window.__moonshot={S,VAULTS,V,cur,go,openVault,slideTo,render,renderTicker,paintCards,
+  refreshDeposits,refreshAllDeposits,syncVault,syncAll,refreshPosition,
+  refreshAllPositions,renderPortfolio,openPortfolio,loadHistory,renderHistory};
+})();
+</script>
+</body>
+</html>

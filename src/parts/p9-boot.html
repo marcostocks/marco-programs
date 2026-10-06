@@ -1,0 +1,28 @@
+/* ════════ boot ════════ */
+try{const R=localStorage.getItem('marco.railw');if(R)S.railW=+R}catch(e){}
+try{const L=localStorage.getItem('marco.layout');if(L)S.layout=L;
+  const C=localStorage.getItem('marco.custom');if(C)S.custom=JSON.parse(C)}catch(e){}
+const startSeg=(location.hash||'#/markets').replace('#/','').split('/');
+const start=startSeg[0];
+setSide('buy');
+if(EMBED_PAGES.includes(start))openEmbed(start,startSeg.slice(1).join('/'));
+else go(['markets','trade','portfolio','agents','settings'].includes(start)?start:'markets');
+if(start==='agents'&&startSeg[1])openAgent(startSeg[1]);
+if(start==='settings'&&startSeg[1])setPanel(startSeg[1]);
+feed();setInterval(feed,20000);
+chain();   // load the chain client up front, whatever page we open on — it decides the book
+window.__marco={S,MARKETS,VAULTS,openVault,openEmbed,embedApi,openMarket,go,loadTV,showFallback,renderMarkets,setWL,setMode,
+  renderAgents,openAgent,openBuilder,loadAgents,renderSettings,loadPrefs};
+})();
+</script>
+<script>
+// TradingView is the only external dependency. If it loads, Advanced mode swaps
+// its canvas chart for a full TV chart; if it fails the local fallback stays.
+(function(){
+  var s=document.createElement('script');
+  s.src='https://s3.tradingview.com/tv.js';s.async=true;
+  s.onload=function(){var m=window.__marco;if(m&&m.S.page==='trade'&&m.S.mode==='adv')m.loadTV()};
+  s.onerror=function(){var m=window.__marco;if(m&&m.S.page==='trade'&&m.S.mode==='adv')m.showFallback()};
+  document.head.appendChild(s);
+})();
+</script>

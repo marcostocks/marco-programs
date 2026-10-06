@@ -7,3 +7,6 @@ target/
 test-ledger/
 .env
 *-keypair.json
+
+# build intermediate — src/build.sh concatenates parts into it
+src/index.src.html

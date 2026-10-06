@@ -1,0 +1,1027 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Moonshot AI · Pre-IPO Vault — Marco</title>
+<meta name="description" content="Subscribe USDC to the Moonshot AI pre-IPO vault. Settlement on Solana; vault tokens redeem on net IPO proceeds.">
+<meta name="color-scheme" content="dark light">
+<style>
+/*__FONTS__*/
+
+/* ═══════════════════════════════════════════════════════════════
+   MOONSHOT AI — one pre-IPO offering, on its own page.
+
+   The tokens below are copied verbatim from the platform page
+   (src/parts/p1-head.html) so the two look like the same product.
+   What follows them is only the component set this page uses —
+   there is no market tape, no trade view and no vault picker here,
+   so none of that CSS came along.
+
+   The platform runs under zoom:.87 to fit a dense dashboard on one
+   screen. A landing page has no such pressure, so it renders at 1:1
+   and every copied rule lands about 15% larger.
+   ═══════════════════════════════════════════════════════════════ */
+:root{
+  --bg:#101114; --bg-2:#17181C; --bg-3:#1F2024;
+  --surface:rgba(255,255,255,.055); --surface-2:rgba(255,255,255,.10);
+  --line:rgba(255,255,255,.12); --line-2:rgba(255,255,255,.22);
+  --ink:#F5F5F7; --ink-2:#AEAEB2; --mute:#8A8A8E;
+  --cap-bg:transparent;
+  --hero-fill:#16171B;
+  --cap-fill:rgba(255,255,255,.05); --cap-line:rgba(255,255,255,.10); --cap-line-2:rgba(255,255,255,.17);
+  --hero-top:#1D1E24; --hero-btm:#141519; --hero-edge:rgba(255,255,255,.07);
+  --acc:#DEE0E7; --acc-dim:rgba(222,224,231,.13); --acc-ink:#08080A;
+  --up:#30D158; --down:#FF453A; --brand:#4D9BF0;
+  /* One hue and one neutral, not two hues: blue carries the measure the page is
+     about and silver carries what it is read against, on every chart in the
+     financials — the same pairing the radar and the multiples already use, so
+     "blue means this one" holds across all three. Separation is by chroma
+     rather than by hue, which survives any colour-vision deficiency; the
+     legends carry the identity either way. */
+  --ser-1:#3F8DE4; --ser-2:#AEAEB2;
+  --r:14px; --r-sm:10px; --t-fast:120ms; --t-slow:240ms;
+  --sans:'Open Sauce Sans',-apple-system,BlinkMacSystemFont,system-ui,sans-serif;
+  /* The bar's contents are centred in it, so its height is also how far down
+     the mark and the icons sit. Everything that has to clear the header —
+     body's top padding, both view min-heights, the rail's sticky offset —
+     is calculated from this, so moving it moves the whole page together. */
+  --nav-h:80px;
+  /* artwork, embedded at build time from moonshot/src/art/ */
+  --land-img:url("@LANDING_BG@");
+  --bg-wave:@WAVE_BG@;
+  --logo-moon:url("@MOON_LOGO@");
+  --logo-unitree:url("@UNITREE_LOGO@");
+  --logo-red:url("@RED_LOGO@");
+  --logo-byte:url("@BYTE_LOGO@");
+  --logo-dseek:url("@DSEEK_LOGO@");
+  /* Only two things sit directly on the artwork — the header and the small
+     print — so the scrim only has to work at the top and bottom. Through the
+     middle it stays light and the card supplies its own contrast. */
+  --land-scrim:linear-gradient(180deg,rgba(16,17,20,.62) 0%,rgba(16,17,20,.26) 34%,
+    rgba(16,17,20,.30) 66%,rgba(16,17,20,.78) 100%);
+  /* Shadow colour, as a bare triple so alpha can vary per layer, and a density
+     multiplier applied to every layer. A dark card on a dark page can only take
+     so much shadow before it reads as grime, so dark stays near 1. */
+  --sh:0,0,0; --sh-k:1.3;
+  /* The scene is a deep, fully saturated blue, so it needs more veil than the
+     artwork's own scrim carries — but it is already dark, so not much more. */
+  --scene-veil:rgba(16,17,20,.34);
+}
+html[data-theme="light"]{
+  --bg:#FFFFFF; --bg-2:#F5F5F7; --bg-3:#EBEBED;
+  --surface:rgba(0,0,0,.035); --surface-2:rgba(0,0,0,.07);
+  --line:rgba(0,0,0,.11); --line-2:rgba(0,0,0,.20);
+  --ink:#1D1D1F; --ink-2:#515154; --mute:#6E6E73;
+  --cap-bg:transparent;
+  --hero-fill:#F4F4F7;
+  --cap-fill:rgba(0,0,0,.04); --cap-line:rgba(0,0,0,.10); --cap-line-2:rgba(0,0,0,.17);
+  --hero-top:#FFFFFF; --hero-btm:#F0F0F4; --hero-edge:rgba(255,255,255,.9);
+  --acc:#1D1D1F; --acc-dim:rgba(29,29,31,.10); --acc-ink:#FFFFFF;
+  --up:#248A3D; --down:#D70015; --brand:#2A72C8;
+  --ser-1:#2A72C8; --ser-2:#515154;
+  /* Light theme lifts the artwork toward white rather than pushing it toward
+     black — but barely. Near-black type only needs help directly behind the
+     header, and the ticker carries its own backdrop, so the middle is left
+     almost bare. Any more veil and the green washes out to grey, which is the
+     one thing this background must not become. */
+  --land-scrim:linear-gradient(180deg,rgba(255,255,255,.38) 0%,rgba(255,255,255,.05) 30%,
+    rgba(255,255,255,.07) 68%,rgba(255,255,255,.46) 100%);
+  /* Tinted toward the artwork rather than neutral: a shadow takes the colour of
+     what it falls on, and pure black over pale green reads as dirt. It also
+     needs far more density here — the same alphas that sit heavy under a dark
+     card all but vanish under a white one on a pale field. */
+  --sh:22,34,18; --sh-k:2.2;
+  /* Reversed, and much heavier: the scene is both dark and fully saturated, so
+     near-black type over it is unreadable until a lot of veil has gone on.
+     Tinted blue rather than white — that much pure white lifts the luminance
+     but strips the hue with it, and the scene ends up grey. Carrying the
+     scene's own colour into the veil keeps it blue at the same brightness. */
+  --scene-veil:rgba(214,232,252,.62);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+/* No smooth scrolling: the only programmatic scroll here is the jump to the top
+   when the view switches, and animating that from deep in the detail page
+   reads as the page falling over rather than as a navigation. */
+html{scroll-padding-top:calc(var(--nav-h) + 18px);overflow-x:clip}
+body{background:var(--bg);color:var(--ink);font-family:var(--sans);font-weight:400;
+  font-size:15px;line-height:1.5;-webkit-font-smoothing:antialiased;
+  padding-top:var(--nav-h)}   /* the fixed header no longer occupies flow */
+*{scrollbar-color:var(--line-2) transparent}
+*::-webkit-scrollbar{width:8px;height:8px}
+*::-webkit-scrollbar-track{background:transparent}
+*::-webkit-scrollbar-thumb{background:var(--line-2);border-radius:4px}
+button,input{font-family:inherit;color:inherit;font-weight:inherit;font-size:inherit}
+button{background:none;border:none;cursor:pointer}
+a{color:inherit;text-decoration:none}
+:focus-visible{outline:2px solid var(--acc);outline-offset:2px;border-radius:4px}
+.vh{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.num{font-variant-numeric:tabular-nums lining-nums;font-feature-settings:'tnum' 1,'lnum' 1;letter-spacing:0}
+.up{color:var(--up)}.dn{color:var(--down)}
+/* USDC mark sits on the text baseline and scales with its label */
+.usdc{display:inline-flex;align-items:center;gap:.38em;white-space:nowrap}
+.usdcMark{width:1em;height:1em;flex:0 0 auto;border-radius:50%;display:block}
+
+/* ── shell ── */
+.wrap{max-width:1240px;margin:0 auto;padding:0 28px}
+@media(max-width:640px){.wrap{padding:0 18px}}
+/* The header carries the mark and two controls, nothing else — no rule under it,
+   so on the landing it sits straight on the artwork. */
+/* Fixed, not sticky. Sticky depends on every ancestor staying out of the way —
+   an `overflow` on one of them silently turns it back into a scrolling element
+   — whereas fixed is pinned to the viewport whatever the layout does. It leaves
+   the flow, so body carries matching top padding.
+   Transparent on the landing: the artwork runs the height of the page and the
+   header sits straight on it. */
+nav.top{position:fixed;top:0;left:0;right:0;z-index:40;height:var(--nav-h);
+  background:transparent}
+/* On the detail page the header leaves once you are past it — it is furniture,
+   not navigation, and everything below it is what you came to read.
+   It needs a plate for the trip: the page has no artwork behind it, so a
+   transparent header would let the vault's own content scroll visibly through
+   the mark and the icons on the way out. Opaque, the same colour as the page,
+   so it is invisible while parked at the top and solid while anything is
+   passing beneath it. Still no rule under it.
+   It slides rather than fades, for the same reason — a fading plate goes
+   see-through mid-transition, which is the thing it is there to prevent. */
+body[data-view="vault"] nav.top{background:var(--bg)}
+/* The portfolio keeps the artwork behind it, so its header wants no plate — but
+   it still has to leave on the way down, or the scrolling capsule passes under a
+   fixed mark and icons. Same slide as the detail page, just transparent. */
+body[data-view="vault"] nav.top,
+body[data-view="portfolio"] nav.top{
+  transition:transform var(--t-slow) cubic-bezier(.4,0,.2,1)}
+body[data-view="vault"] nav.top.gone,
+body[data-view="portfolio"] nav.top.gone{transform:translateY(-100%);pointer-events:none}
+@media(prefers-reduced-motion:reduce){
+  body[data-view="vault"] nav.top,body[data-view="portfolio"] nav.top{transition:none}}
+/* Marco is centred on the header itself, not on the space left over by the
+   controls — so it stays put whether the wallet label is short, long or absent. */
+.topIn{height:100%;display:flex;align-items:center;justify-content:flex-end;gap:6px;position:relative}
+.brandMark{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
+  font-size:19px;font-weight:600;letter-spacing:-.02em;color:var(--ink);
+  padding:6px 12px;border-radius:9px;white-space:nowrap;transition:opacity var(--t-fast)}
+.brandMark:hover{opacity:.66}
+/* Inside the platform its rail already carries the brand, theme and wallet. */
+html.embedded .brandMark,html.embedded #themeBtn,html.embedded #walletBtn{display:none}
+.iconb{width:36px;height:36px;border-radius:10px;display:grid;place-items:center;color:var(--ink-2);
+  flex:0 0 auto;position:relative;transition:color var(--t-fast),background var(--t-fast)}
+.iconb:hover{color:var(--ink);background:var(--surface-2)}
+.iconb svg{width:19px;height:19px;fill:none;stroke:currentColor;stroke-width:1.7;
+  stroke-linecap:round;stroke-linejoin:round;display:block}
+/* connection state rides the wallet icon: a bare dot, grey until a wallet is
+   attached and green once it is. Connected, it breathes — the one thing on the
+   page that reports a live link, so it is the one thing that moves on its own. */
+.wicon .wdot{position:absolute;right:6px;bottom:6px;width:5px;height:5px;border-radius:50%;
+  background:var(--mute);transition:background var(--t-fast)}
+.wicon.on{color:var(--ink)}
+.wicon.on .wdot{background:var(--up);animation:wpulse 3.4s ease-in-out infinite}
+/* Shallow and slow — it should read as alive in peripheral vision, not ask to
+   be looked at. Anything wider than this starts blinking. */
+@keyframes wpulse{0%,100%{opacity:1}50%{opacity:.72}}
+@media(prefers-reduced-motion:reduce){.wicon.on .wdot{animation:none}}
+
+/* ── type ── */
+.h1{font-size:34px;font-weight:600;letter-spacing:-.028em;line-height:1.1}
+.h2{font-size:20px;font-weight:600;letter-spacing:-.02em}
+.h3{font-size:16px;font-weight:600;letter-spacing:-.01em}
+.mini{font-size:12px;color:var(--mute)}
+.nm{font-weight:500;color:var(--ink)}
+.ct{font-size:14px;font-weight:600;letter-spacing:-.01em}
+.cs{font-size:12px;color:var(--mute)}
+.ch{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:17px 20px 0}
+
+/* ── surfaces ── */
+.card{background:var(--cap-bg);border:1px solid var(--cap-line);border-radius:var(--r);position:relative}
+.card.hero,.vrsec.hl{background:linear-gradient(180deg,var(--hero-top) 0%,var(--hero-btm) 78%);
+  border-color:var(--cap-line-2);box-shadow:inset 0 1px 0 var(--hero-edge)}
+.mark{width:36px;height:36px;border-radius:10px;display:grid;place-items:center;font-weight:600;
+  font-size:15px;background:var(--surface-2);color:var(--ink-2)}
+.badge{font-size:11px;font-weight:500;padding:4px 9px;border-radius:6px;white-space:nowrap;
+  background:var(--cap-fill);border:1px solid var(--cap-line);color:var(--mute)}
+/* Open is the state that matters on a card, so it carries colour rather than
+   just a heavier border. */
+.badge.live{color:var(--up);border-color:color-mix(in srgb,var(--up) 34%,transparent);
+  background:color-mix(in srgb,var(--up) 12%,transparent)}
+.vBadge{font-size:10px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;
+  color:var(--ink-2);padding:5px 10px;border-radius:5px;
+  border:1px solid var(--cap-line);background:var(--cap-bg);white-space:nowrap}
+.vBadge.live{color:var(--up);border-color:color-mix(in srgb,var(--up) 34%,transparent);
+  background:color-mix(in srgb,var(--up) 11%,transparent)}
+.bar{display:block;height:4px;background:var(--cap-fill);border-radius:99px;overflow:hidden}
+.barF{display:block;height:100%;background:var(--ink-2);border-radius:99px;transition:width var(--t-slow)}
+.barF.acc{background:var(--up)}
+.tag{font-size:11px;font-weight:500;padding:3px 8px;border-radius:6px;background:var(--cap-bg);
+  border:1px solid var(--cap-line);color:var(--mute);white-space:nowrap}
+.btn{font-size:14px;font-weight:500;color:var(--ink);background:var(--surface-2);padding:10px 18px;
+  border-radius:var(--r-sm);transition:background var(--t-fast);display:inline-block}
+.btn:hover{background:var(--line)}
+.btn.p{background:var(--acc);color:var(--acc-ink)}
+.btn.p:hover{filter:brightness(1.1)}
+.lnk{color:var(--ink);text-decoration:underline;text-underline-offset:3px;
+  text-decoration-color:var(--cap-line-2)}
+.lnk:hover{text-decoration-color:var(--acc)}
+.futLink{margin-left:auto;font-size:13px;color:var(--ink-2)}
+
+/* ── landing ─────────────────────────────────────────────────────────────
+   One capsule on the artwork, and the way into the offering. The capsule is the
+   platform's featured vault card (src/parts/p1-head.html, .vfeat) with the
+   picker taken out — there is only one offering, so there is nothing to choose
+   between. With no headline above it, the card centres in the viewport. */
+/* The poster occupies the first screen; the offering continues below it in the
+   same scroll. The capsule takes the free height and the ticker sits on the
+   fold, where being half-visible is itself the invitation to keep going. */
+/* dvh, not vh: on mobile the browser chrome makes vh taller than what is
+   actually on screen, which is exactly the case where pushing the ticker off
+   the fold matters most. */
+#landing{position:relative;min-height:calc(100dvh - var(--nav-h));
+  display:flex;flex-direction:column}
+@supports not (height:100dvh){#landing{min-height:calc(100vh - var(--nav-h))}}
+.landStage{flex:1;display:flex;flex-direction:column;justify-content:center;
+  padding:34px 0 26px;position:relative;z-index:1}
+/* Fixed to the viewport so it never scrolls away under the poster. Lives
+   outside #landing for that reason: a fixed child would still be trapped by any
+   ancestor that took a transform.
+
+   The artwork belongs to the poster only. The detail page is dense — tables,
+   two charts, a subscribe form — and none of it wants texture underneath.
+
+   The generated artwork is the base. A scene layer sits over it and fades in as
+   the strip reaches the cards carrying that scene, so the backdrop changes part
+   way along the strip rather than once per card.
+ */
+.landBg{position:fixed;inset:0;z-index:0;pointer-events:none;
+  background:var(--land-img) center/cover no-repeat}
+/* Blurred a little, and scaled past the edges so the blur has no border to
+   soften: a photograph at full sharpness fights the card sitting on it, and the
+   generated artwork it fades from has no detail at this frequency either. Kept
+   light — this one carries its own depth of field, and the narrow band that is
+   actually in focus is the subject. */
+.bgScene{position:absolute;inset:0;background-position:center;background-size:cover;
+  background-repeat:no-repeat;opacity:0;will-change:opacity;
+  filter:blur(1.5px);transform:scale(1.03)}
+/* Its own veil, since a photograph is far darker and more saturated than the
+   pale generated artwork the shared scrim below was tuned against. */
+.bgScene::after{content:'';position:absolute;inset:0;background:var(--scene-veil)}
+.landBg::after{content:'';position:absolute;inset:0;background:var(--land-scrim)}
+body[data-view="vault"] .landBg{display:none}
+@media(max-width:640px){.landStage{padding:22px 0 20px}}
+/* The page's title, above the capsules — the platform's page-title scale. */
+.landTitle{text-align:center;font-size:34px;font-weight:600;letter-spacing:-.028em;
+  line-height:1.1;color:var(--ink);margin:0 0 26px;padding:0 18px;
+  transform:translateY(-32px)}   /* lifted clear of the capsules without moving them */
+@media(max-width:640px){.landTitle{font-size:28px;margin-bottom:16px;transform:translateY(-18px)}}
+
+/* Glass, but only slightly: the fill stays near-opaque so the dense figures on
+   it never have to compete with the artwork, and the blur does the rest. A
+   lower opacity would look more like glass and read considerably worse.
+
+   Width belongs to .snapCard — setting it here too would win on specificity and
+   stretch every card to the strip's full width. */
+.card.hero.vfeat{
+  background:linear-gradient(180deg,
+    color-mix(in srgb,var(--hero-top) 88%,transparent) 0%,
+    color-mix(in srgb,var(--hero-btm) 92%,transparent) 78%);
+  backdrop-filter:blur(22px) saturate(1.18);
+  -webkit-backdrop-filter:blur(22px) saturate(1.18)}
+/* The lit top edge is what sells it as a pane rather than a translucent panel. */
+.vfeat::before{content:'';position:absolute;inset:0;border-radius:inherit;
+  pointer-events:none;
+  background:linear-gradient(180deg,
+    color-mix(in srgb,var(--hero-edge) 100%,transparent) 0%,
+    transparent 42%);
+  opacity:.5;mix-blend-mode:overlay}
+
+/* ── the strip ─────────────────────────────────────────────────────────────
+   The offerings side by side on a native scroll with snap points: momentum on
+   a trackpad, a swipe on a phone, and the cards stay in the document so the
+   keyboard and a screen reader can reach them.
+
+   Cards sit side by side with a plain gap between them. */
+.strip{position:relative}
+.track{display:flex;gap:22px;overflow-x:auto;scroll-snap-type:x mandatory;
+  scrollbar-width:none;-ms-overflow-style:none;
+  /* Keep a horizontal overscroll from turning into the browser's back-swipe. */
+  overscroll-behavior-x:contain;
+  /* `overflow-x:auto` forces `overflow-y` to `auto` as well — the spec allows
+     only one axis to be visible — so this box clips vertically whether or not
+     it ever scrolls that way, and it was slicing the card shadows off in a
+     straight line. The padding gives the shadow room to fall inside the scroll
+     box; the matching negative margin takes that room back out of the layout,
+     so nothing below moves. */
+  padding:22px 0 92px;margin:-22px 0 -92px}
+.track::-webkit-scrollbar{display:none}
+.snapCard{scroll-snap-align:center;flex:0 0 min(720px,84vw);
+  transform-origin:center center;
+  /* No transform transition: the scale is repainted every frame from the scroll
+     position, so a transition would lag a frame behind the finger instead of
+     smoothing anything. Its own compositor layer keeps that repaint cheap. */
+  will-change:transform;
+  transition:box-shadow var(--t-slow) ease}
+/* ── card elevation ────────────────────────────────────────────────────────
+   A shadow is a contact edge plus a penumbra that widens and fades as it
+   leaves the surface. One large blur cannot express that and reads as a glow,
+   so each state stacks layers that roughly double in blur and halve in alpha —
+   which is the falloff a real soft light source produces.
+
+   No horizontal offset: the artwork is swappable, so baking a light direction
+   into the shadow would be wrong the first time the background changes. */
+.snapCard{
+  box-shadow:
+    inset 0 1px 0 var(--hero-edge),
+    0 1px 1px rgba(var(--sh),calc(.10 * var(--sh-k))),
+    0 2px 2px rgba(var(--sh),calc(.10 * var(--sh-k))),
+    0 4px 5px rgba(var(--sh),calc(.09 * var(--sh-k))),
+    0 8px 10px rgba(var(--sh),calc(.08 * var(--sh-k))),
+    0 16px 22px rgba(var(--sh),calc(.07 * var(--sh-k)))}
+/* Centred: further off the surface, so the contact edge stays tight while the
+   penumbra spreads. Negative spread on the widest layers keeps them from
+   haloing out past the card. */
+.snapCard.on{
+  box-shadow:
+    inset 0 1px 0 var(--hero-edge),
+    0 1px 2px rgba(var(--sh),calc(.16 * var(--sh-k))),
+    0 3px 5px rgba(var(--sh),calc(.12 * var(--sh-k))),
+    0 7px 12px rgba(var(--sh),calc(.10 * var(--sh-k))),
+    0 14px 24px -2px rgba(var(--sh),calc(.09 * var(--sh-k))),
+    0 26px 44px -6px rgba(var(--sh),calc(.09 * var(--sh-k))),
+    0 44px 72px -12px rgba(var(--sh),calc(.075 * var(--sh-k))),
+    0 68px 110px -22px rgba(var(--sh),calc(.06 * var(--sh-k)))}
+/* Hovered: lifted 7px, so the contact shadow softens and the penumbra grows
+   and dilutes — the tell that something has left the surface. */
+.snapCard:hover{
+  border-color:var(--cap-line-2);
+  box-shadow:
+    inset 0 1px 0 var(--hero-edge),
+    0 2px 3px rgba(var(--sh),calc(.13 * var(--sh-k))),
+    0 5px 9px rgba(var(--sh),calc(.11 * var(--sh-k))),
+    0 11px 20px rgba(var(--sh),calc(.10 * var(--sh-k))),
+    0 22px 38px -3px rgba(var(--sh),calc(.09 * var(--sh-k))),
+    0 40px 66px -8px rgba(var(--sh),calc(.09 * var(--sh-k))),
+    0 66px 104px -16px rgba(var(--sh),calc(.08 * var(--sh-k))),
+    0 96px 150px -28px rgba(var(--sh),calc(.07 * var(--sh-k)))}
+
+/* The scroll painter supplies --cardScale; everything that moves a card is
+   composed here so the hover lift and the scroll scale cannot clobber
+   each other. */
+.snapCard{transform:scale(var(--cardScale,1))}
+.snapCard:hover{transform:scale(var(--cardScale,1)) translateY(-7px)}
+.snapCard:active{transform:scale(var(--cardScale,1)) translateY(-3px)}
+@media(prefers-reduced-motion:reduce){
+  .snapCard:hover,.snapCard:active{transform:scale(var(--cardScale,1))}
+}
+.snapCard:not(.on) .featCta{pointer-events:none}
+.snapCard:not(.on){cursor:pointer}
+/* Leading and trailing gutters so the first and last cards can still centre. */
+.track::before,.track::after{content:'';flex:0 0 max(0px,calc((100% - min(720px,84vw))/2 - 11px))}
+@media(prefers-reduced-motion:reduce){
+  .track{scroll-behavior:auto}
+  .snapCard{transition:none}
+}
+
+.cBtn{position:absolute;top:50%;transform:translateY(-50%);z-index:60;
+  width:42px;height:42px;border-radius:50%;display:grid;place-items:center;
+  color:var(--ink);border:1px solid var(--cap-line-2);
+  background:color-mix(in srgb,var(--bg) 62%,transparent);
+  backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+  transition:opacity var(--t-fast),background var(--t-fast)}
+.cBtn:hover{background:color-mix(in srgb,var(--bg) 82%,transparent)}
+.cBtn:disabled{opacity:0;pointer-events:none}
+.cBtn svg{width:19px;height:19px;fill:none;stroke:currentColor;stroke-width:2;
+  stroke-linecap:round;stroke-linejoin:round}
+.cBtn.prev{left:max(6px,calc(50% - 360px - 62px))}
+.cBtn.next{right:max(6px,calc(50% - 360px - 62px))}
+@media(max-width:980px){.cBtn{display:none}}
+
+.dots{display:flex;justify-content:center;gap:8px;margin-top:22px;position:relative;z-index:60}
+/* The track's padding overhangs these; they have to stay above it to stay clickable. */
+.ticker{z-index:61}
+.dot{width:7px;height:7px;border-radius:50%;background:var(--cap-line-2);
+  transition:background var(--t-fast),transform var(--t-fast)}
+.dot:hover{background:var(--ink-2)}
+.dot.on{background:var(--ink);transform:scale(1.25)}
+
+.badgeRow{display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:center}
+.badge.onchain{color:var(--up);border-color:color-mix(in srgb,var(--up) 34%,transparent);
+  background:color-mix(in srgb,var(--up) 11%,transparent)}
+.fMark2{width:58px;height:58px;border-radius:16px;font-size:24px;flex:0 0 auto}
+
+/* Plain surface, no artwork and no veil to blur through — the content carries
+   this view on its own. */
+#offering{display:none;position:relative;z-index:1;min-height:calc(100vh - var(--nav-h));
+  background:var(--bg)}
+
+.vfeat{padding:38px 32px 32px;text-align:center}
+.fhead{display:flex;flex-direction:column;align-items:center;gap:20px;position:relative}
+.fmark{display:flex;flex-direction:row;align-items:center;gap:22px;min-width:0}
+/* Two kinds of mark, and they cannot be drawn the same way.
+   A monochrome logo is used as a MASK, so the shape takes the theme's ink
+   colour and reads on either background. A brand-colour logo is drawn as an
+   IMAGE, because masking it would throw the colour away — which for
+   Xiaohongshu's red or ByteDance's blues is most of the logo. */
+.fLogo{width:68px;height:68px;flex:0 0 auto}
+.fLogo.mask{background:var(--ink);
+  -webkit-mask:var(--logo) center/contain no-repeat;
+  mask:var(--logo) center/contain no-repeat}
+.fLogo.img{background:var(--logo) center/contain no-repeat}
+.fname{font-size:54px;font-weight:600;letter-spacing:-.032em;line-height:1.04;display:block}
+.fhClock{text-align:center;margin-top:34px}
+.fhClockK{font-size:11px;font-weight:500;letter-spacing:.14em;text-transform:uppercase;
+  color:var(--mute)}
+/* the countdown as split-flap tiles — the one piece of chrome on the page,
+   because the deadline is the thing a visitor has to act on */
+.fhCd{display:flex;gap:14px;justify-content:center;margin-top:14px}
+.fhCd .cdu{min-width:0;text-align:center}
+.fhCd .cdv{display:block;position:relative;min-width:96px;padding:16px 12px 17px;
+  border-radius:14px;overflow:hidden;
+  font-size:44px;font-weight:500;letter-spacing:-.02em;line-height:1;color:var(--ink);
+  background:linear-gradient(180deg,#25262d 0%,#25262d 50%,#191a1f 50%,#141519 100%);
+  border:1px solid var(--cap-line-2);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.07),0 6px 16px rgba(0,0,0,.4)}
+.fhCd .cdv:after{content:"";position:absolute;left:0;right:0;top:50%;height:1px;
+  background:rgba(0,0,0,.55);box-shadow:0 1px 0 rgba(255,255,255,.05)}
+/* Sentence case, like every other label — the card used to uppercase these
+   while the detail hero left them lowercase, so the same four words rendered
+   two different ways depending on which screen you were on. */
+.fhCd .cdl{display:block;font-size:10px;font-weight:600;letter-spacing:.08em;
+  color:var(--mute);margin-top:10px}
+html[data-theme="light"] .fhCd .cdv{
+  background:linear-gradient(180deg,#fff 0%,#fff 50%,#f1f1f4 50%,#e9e9ee 100%)}
+html[data-theme="light"] .fhCd .cdv:after{background:rgba(0,0,0,.12);box-shadow:none}
+.fhClosed{font-size:34px;font-weight:500;letter-spacing:-.026em;line-height:1;margin-top:12px}
+.fhClockD{font-size:12px;color:var(--mute);margin-top:14px}
+.fstats{display:grid;grid-auto-flow:column;grid-auto-columns:1fr;align-items:start;
+  margin:32px auto 0;padding-top:26px;border-top:1px solid var(--cap-line);max-width:920px}
+.fstats .hstat{padding:0 18px}
+.fstats .hk{font-size:11px;font-weight:400;letter-spacing:0;text-transform:none;margin-bottom:8px}
+.fstats .hv{font-size:26px;font-weight:500;letter-spacing:-.026em;line-height:1}
+.fstats .hsub{margin-top:7px}
+.fhFill{max-width:920px;margin:26px auto 4px}
+.fhCh{height:132px}
+.fhCh canvas{width:100%;height:100%;display:block}
+.featCta{margin-top:26px;padding:13px 34px;font-size:15px;border-radius:var(--r)}
+/* ── ticker ───────────────────────────────────────────────────────────────
+   One line, edge to edge, under the capsule. Two kinds of item share it: real
+   subscriptions read off the chain, which carry the live dot, and commentary,
+   which carries a source tag and never that dot.
+
+   The run is rendered twice and translated exactly -50%, so the loop closes on
+   itself with no jump. Anything that changes item widths has to re-render both
+   halves together or the seam shows. */
+.ticker{position:relative;z-index:1;overflow:hidden;flex:0 0 auto;
+  border-top:1px solid var(--cap-line);
+  background:color-mix(in srgb,var(--bg) 40%,transparent);
+  backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+  -webkit-mask-image:linear-gradient(90deg,transparent,#000 7%,#000 93%,transparent);
+  mask-image:linear-gradient(90deg,transparent,#000 7%,#000 93%,transparent)}
+.tickerRun{display:flex;width:max-content;animation:tickerRun 90s linear infinite}
+.ticker:hover .tickerRun,.ticker:focus-within .tickerRun{animation-play-state:paused}
+@keyframes tickerRun{from{transform:translate3d(0,0,0)}to{transform:translate3d(-50%,0,0)}}
+@media(prefers-reduced-motion:reduce){
+  /* Scrolling text is the exact thing this preference exists for. Stop it and
+     let the row scroll by hand instead. */
+  .tickerRun{animation:none}
+  .ticker{overflow-x:auto;-webkit-mask-image:none;mask-image:none}
+}
+.tkItem{display:inline-flex;align-items:center;gap:9px;flex:0 0 auto;
+  padding:11px 22px;font-size:12.5px;line-height:1.4;color:var(--ink-2);white-space:nowrap}
+.tkItem+.tkItem{box-shadow:inset 1px 0 0 var(--cap-line)}
+.tkAmt{font-weight:600;color:var(--ink)}
+.tkWho{color:var(--mute)}
+.tkAgo{color:var(--mute);font-size:11px}
+.tkSrc{font-size:10px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;
+  color:var(--mute);flex:0 0 auto}
+.tkBody{color:var(--ink-2);max-width:52ch;overflow:hidden;text-overflow:ellipsis}
+/* the live dot belongs only to items that came off the chain */
+.tkDot{width:6px;height:6px;border-radius:50%;background:var(--up);flex:0 0 auto;
+  box-shadow:0 0 0 3px color-mix(in srgb,var(--up) 16%,transparent);
+  animation:tkPulse 2.4s ease-in-out infinite}
+@keyframes tkPulse{0%,100%{opacity:1}50%{opacity:.45}}
+@media(prefers-reduced-motion:reduce){.tkDot{animation:none}}
+@media(max-width:640px){.tkItem{padding:10px 16px;font-size:12px}.tkBody{max-width:34ch}}
+
+.landFoot{text-align:center;font-size:12px;color:var(--mute);line-height:1.7;margin-top:26px}
+@media(max-width:760px){.vfeat{padding:30px 20px 26px}
+  .fhCd{gap:9px}.fhCd .cdv{min-width:0;padding:13px 9px 14px;font-size:32px}
+  .fstats .hstat{padding:0 8px}.fstats .hv{font-size:20px}
+  .fname{font-size:34px}.fmark{gap:15px}.fLogo{width:46px;height:46px}}
+
+/* a capsule that is itself the link rises to say so */
+.lift{cursor:pointer;
+  transition:border-color var(--t-slow),transform var(--t-slow) cubic-bezier(.22,.7,.3,1),
+    box-shadow var(--t-slow) cubic-bezier(.22,.7,.3,1)}
+.lift:not(.snapCard):hover{border-color:var(--cap-line-2);transform:translateY(-7px);
+  box-shadow:inset 0 1px 0 var(--hero-edge),
+    0 8px 18px rgba(0,0,0,.34),0 30px 64px rgba(0,0,0,.55)}
+/* The platform's version also drops the card 4px on :active. Here the card
+   contains the Subscribe button, and moving it between mousedown and mouseup
+   can land the two on different elements — which produces no click at all.
+   The press feedback belongs to the button, not to the 700px card holding it. */
+.lift:focus-visible{outline:2px solid var(--brand);outline-offset:2px}
+.snapCard{transition:box-shadow var(--t-slow) ease,border-color var(--t-slow) ease}
+.featCta:active{transform:translateY(1px)}
+@media(prefers-reduced-motion:reduce){.lift,.lift:hover,.lift:active{transform:none;transition:none}}
+
+/* ── layout ──────────────────────────────────────────────────────────────
+   The rail carries the subscription box, which is the only thing on this page
+   anyone has to reach. It therefore starts level with the hero rather than
+   below it — on a 1280×720 screen a rail that begins under the hero puts the
+   Subscribe button entirely below the fold.
+
+   Two rows, two columns: the hero and the sections stack in the left column
+   while the rail spans both on the right. Below the breakpoint the areas
+   re-order to hero → rail → sections, so the box is still the first thing
+   after the headline on a phone. */
+.layout{display:grid;grid-template-columns:minmax(0,1fr) 384px;
+  grid-template-areas:"hero rail" "content rail";
+  column-gap:44px;align-items:start;padding:44px 0 20px}
+.content{grid-area:content;min-width:0}
+.rail{grid-area:rail;align-self:start;position:sticky;top:calc(var(--nav-h) + 22px)}
+@media(max-width:1080px){
+  .layout{grid-template-columns:1fr;grid-template-areas:"hero" "rail" "content";
+    row-gap:30px;padding-top:36px}
+  .rail{position:static}
+}
+
+/* ── hero ── */
+.hero{grid-area:hero;padding-bottom:26px;min-width:0;position:relative}
+/* ── back to the carousel ──
+   The glyph alone, so it stays clear of the offering's own name, with the label
+   in aria-label and the tooltip since a lone arrow still has to announce itself.
+   Absolutely placed in the whitespace the layout already leaves above the hero,
+   so it costs no vertical space — in flow it pushed the name, the figures and
+   everything under them down by a row. -36px fits its height inside the narrow
+   breakpoint's 36px of padding; -9px puts the glyph on the text's optical edge. */
+.backArrow{position:absolute;top:-36px;left:-9px;
+  display:inline-flex;align-items:center;justify-content:center;
+  width:34px;height:34px;border-radius:9px;color:var(--mute);
+  transition:color var(--t-fast),background var(--t-fast)}
+.backArrow:hover{color:var(--ink);background:var(--surface-2)}
+.backArrow svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.9;
+  stroke-linecap:round;stroke-linejoin:round;display:block}
+
+.vhead{display:flex;align-items:center;gap:16px;flex-wrap:wrap;margin-bottom:4px}
+.vtickM{width:40px;height:40px;border-radius:12px;font-size:15px;flex:0 0 auto}
+.vLogo{width:46px;height:46px;flex:0 0 auto}
+.vLogo.mask{background:var(--ink);
+  -webkit-mask:var(--logo) center/contain no-repeat;mask:var(--logo) center/contain no-repeat}
+.vLogo.img{background:var(--logo) center/contain no-repeat}
+@media(max-width:640px){.vLogo{width:36px;height:36px}}
+.vTick{font-size:52px;font-weight:600;letter-spacing:-.028em;line-height:1.06;color:var(--ink);min-width:0}
+/* On a phone the mark, the title and the Chinese name cannot share a line, and
+   letting them wrap strands the mark alone above the headline. Drop the name to
+   its own line instead and pull the whole group in a size. */
+@media(max-width:640px){
+  .vTick{font-size:34px}
+  .vtickM{width:32px;height:32px;border-radius:10px;font-size:13px}
+  .vhead{gap:13px;flex-wrap:nowrap;align-items:flex-start}
+  .vtickM{margin-top:3px}
+}
+.vtop{display:flex;align-items:center;gap:14px;margin-bottom:18px;flex-wrap:wrap}
+
+.vdesc{font-size:16px;color:var(--ink-2);line-height:1.6;max-width:640px;margin:0 0 4px}
+.hstats{display:flex;gap:26px 44px;align-items:start;flex-wrap:wrap;padding:24px 0 26px;margin-top:24px;
+  border-top:1px solid var(--cap-line);border-bottom:1px solid var(--cap-line)}
+.hstat{min-width:0}
+.hk{font-size:10px;font-weight:500;letter-spacing:.12em;text-transform:uppercase;
+  color:var(--mute);margin-bottom:12px;white-space:nowrap}
+.hv{font-size:30px;font-weight:400;letter-spacing:-.024em;line-height:1;white-space:nowrap}
+.hsub{font-size:12px;color:var(--mute);margin-top:9px;white-space:nowrap}
+/* ── slot-machine rollup ──
+   A figure is split into its characters. Every digit becomes a window one line
+   tall over a strip of three 0–9 cycles, and the strip is translated so the
+   target digit lands in the last one — so it spins past two full cycles rather
+   than cutting to the answer. Everything that is not a digit stays put, which
+   is what keeps the string from reflowing as the reels turn.
+
+   Inline-flex, not inline: with an overflow-hidden inline-block the baseline
+   becomes the bottom margin edge, so the reels and the fixed characters
+   between them would sit on two different baselines. Laying them out as flex
+   items aligned on their tops sidesteps the question — every cell is exactly
+   1em tall, so tops and baselines coincide.
+
+   An inline-flex takes its baseline from its first flex item, and that item is
+   usually a reel — whose baseline is its bottom edge, which would hang the
+   whole row below the line and stretch the row above it. The zero-width anchor
+   in front gives it a real text baseline instead, so a rolled figure occupies
+   exactly the same line box as the plain one it replaced. */
+.roll{display:inline-flex;align-items:flex-start;line-height:1}
+.roll .rb{display:block;width:0;height:1em}
+.roll .rc{display:block;height:1em;overflow:hidden}
+/* pre, because a block box drops a space that is its only content — which is
+   exactly what every gap in the figure is once the string has been split up. */
+.roll .rf{display:block;height:1em;white-space:pre}
+.roll .rs{display:block;will-change:transform;
+  transition:transform 840ms cubic-bezier(.16,.85,.25,1);
+  transition-delay:calc(var(--i) * 55ms)}   /* left to right, so it lands in order */
+.roll .rd{display:block;height:1em}
+@media(prefers-reduced-motion:reduce){.roll .rs{transition:none}}
+@media(max-width:640px){.hstats{gap:30px 36px}.hv{font-size:24px}}
+.heroCh{height:132px;margin-top:24px}
+.heroCh canvas{width:100%;height:100%;display:block}
+
+/* ── sections ── */
+/* ── sub-tabs, as the platform's vault detail does it ── */
+.vnav{display:flex;gap:4px;overflow-x:auto;overflow-y:hidden;
+  box-shadow:inset 0 -1px 0 var(--cap-line);margin:6px 0 26px;
+  scrollbar-width:none;-ms-overflow-style:none}
+.vnav::-webkit-scrollbar{display:none}
+.vnav button{font-size:14px;font-weight:500;color:var(--mute);padding:11px 13px;
+  position:relative;white-space:nowrap;flex:0 0 auto;transition:color var(--t-fast)}
+.vnav button:hover{color:var(--ink-2)}
+.vnav button.on{color:var(--ink)}
+.vnav button.on::after{content:'';position:absolute;left:13px;right:13px;bottom:0;
+  height:2px;background:var(--acc)}
+.vsec{display:none}
+.vsec.on{display:block}
+.sec{padding-top:0}
+.secH{font-size:26px;font-weight:600;letter-spacing:-.024em;line-height:1.15;margin-bottom:10px}
+.secS{font-size:15px;color:var(--mute);line-height:1.6;max-width:620px;margin-bottom:26px}
+.vsub{font-size:13px;font-weight:600;color:var(--ink);letter-spacing:-.005em;
+  margin:30px 0 12px;padding-top:24px;border-top:1px solid var(--cap-line)}
+.vsub.first{margin-top:0;padding-top:0;border-top:none}
+.vprose{font-size:15px;color:var(--ink-2);line-height:1.65}
+
+/* key/value rows presented as one capsule */
+.vcap{border:1px solid var(--cap-line);border-radius:var(--r);background:var(--cap-bg);padding:2px 18px}
+.vcap .trow:last-child{border-bottom:none}
+.trow{display:flex;justify-content:space-between;gap:18px;padding:12px 0;
+  border-bottom:1px solid var(--cap-line);font-size:14px}
+.trow>span:first-child{color:var(--mute);flex:0 0 auto}
+.trow>span:last-child{text-align:right;color:var(--ink);word-break:break-word;min-width:0}
+.trow a{text-decoration:underline;text-underline-offset:3px;text-decoration-color:var(--cap-line-2)}
+.trow a:hover{text-decoration-color:var(--acc)}
+.addr{font-size:13px}
+
+/* numbered risk list */
+.numitem{display:flex;gap:16px;padding:15px 0;border-bottom:1px solid var(--line)}
+.numitem:last-child{border-bottom:none}
+.numi{font-size:13px;color:var(--mute);flex:0 0 18px;padding-top:3px}
+.numh{font-size:14px;font-weight:500;margin-bottom:4px}
+.numd{font-size:14px;color:var(--mute);line-height:1.55}
+
+/* lifecycle strip */
+.lc{display:flex;margin:14px 0 4px}
+.lcn{flex:1;text-align:center;position:relative;padding-top:28px}
+.lcn::before{content:'';position:absolute;top:6px;left:50%;width:11px;height:11px;margin-left:-5.5px;
+  border-radius:50%;border:2px solid var(--line);background:var(--bg);z-index:1}
+.lcn.done::before{border-color:var(--ink-2);background:var(--ink-2)}
+.lcn.active::before{border-color:var(--acc);background:var(--bg);box-shadow:0 0 0 3px var(--acc-dim)}
+.lcn::after{content:'';position:absolute;top:11px;left:-50%;width:100%;height:2px;background:var(--line)}
+.lcn:first-child::after{display:none}
+.lcn.done::after,.lcn.active::after{background:var(--ink-2)}
+.lck{font-size:13px;font-weight:500;line-height:1.3}
+.lcn.future .lck{color:var(--mute)}
+.lcd{font-size:11px;color:var(--mute);margin-top:4px}
+@media(max-width:640px){.lck{font-size:11px}.lcd{display:none}}
+
+/* charts in titled cards */
+.chc{margin:12px 0 4px}
+.chWrap{height:246px;margin:8px 12px 14px}
+.chWrap.sm{height:170px}
+.chWrap.radarWrap{height:290px;margin:6px 12px 4px}
+/* Legend — present on every chart carrying two series, so identity is never
+   colour alone. Flex because the swatch is an empty element: an inline box
+   ignores width and height, which collapses it to nothing. */
+.chLeg{display:flex;flex-wrap:wrap;gap:6px 20px;font-size:12px;color:var(--ink-2)}
+.chLeg span{display:inline-flex;align-items:center;gap:7px}
+.dotLeg{width:8px;height:8px;border-radius:50%;flex:0 0 auto}
+/* Two tones only: the offering in blue, everything it is measured against in
+   the same neutral the web itself is drawn in. */
+.dotLeg.own{background:var(--ser-1)}
+.dotLeg.peer{background:var(--ink-2)}
+.dotLeg.s1{background:var(--ser-1)}
+.dotLeg.s2{background:var(--ser-2)}
+.chWrap canvas{width:100%;height:100%;display:block}
+
+/* tables */
+table{width:100%;border-collapse:collapse;font-size:14px}
+th{text-align:left;font-size:12px;font-weight:400;color:var(--mute);padding:10px 14px;
+  border-bottom:1px solid var(--line);white-space:nowrap}
+td{padding:12px 14px;border-bottom:1px solid var(--line);color:var(--ink-2)}
+tr:last-child td{border-bottom:none}
+th.r,td.r{text-align:right}
+.tscroll{overflow-x:auto;margin-top:12px}
+.tscroll table{min-width:600px}
+
+/* ── activity & social ──
+   Two lists on the detail page: what the program recorded, and what is being
+   said. They are visually distinct on purpose — the activity rows carry the
+   same live dot the chain ticker uses, and the social rows deliberately do not,
+   because only one of the two is read from anything. */
+.actRows,.socRows{display:flex;flex-direction:column}
+.actRow{display:flex;align-items:center;gap:12px;padding:13px 2px;
+  border-bottom:1px solid var(--cap-line);font-size:13px}
+.actRow:last-child{border-bottom:0}
+.actDot{width:6px;height:6px;border-radius:50%;background:var(--up);flex:0 0 auto}
+/* Illustrative rows lose the live dot and the link. The dot means "this came
+   off the chain" everywhere else on the page, so it cannot appear on a row
+   that did not. */
+.actRow.sim .actDot{background:var(--line-2)}
+.actRow.sim .actTx{color:var(--line-2)}
+.actWho{color:var(--ink)}
+.actWhat{color:var(--mute)}
+.actAmt{color:var(--ink);font-weight:600;margin-left:auto}
+.actAgo{color:var(--mute);min-width:62px;text-align:right}
+.actTx{color:var(--mute);font-size:12px}
+.actTx:hover{color:var(--ink)}
+@media(max-width:560px){.actWhat{display:none}.actAgo{min-width:0}}
+
+/* Product media. A scroll strip rather than a grid: the tile count varies by
+   offering and a grid with one item in it looks like a mistake, where a strip
+   with one item just looks short. Snapped, so a swipe lands on a tile. */
+.mediaStrip{display:flex;gap:14px;overflow-x:auto;scroll-snap-type:x mandatory;
+  scrollbar-width:none;overscroll-behavior-x:contain;margin:0 0 4px;padding-bottom:4px}
+.mediaStrip::-webkit-scrollbar{display:none}
+/* Fixed height, width follows the picture. A gallery gets whatever orientation
+   the company published — a 16:9 product render next to a portrait shot of a
+   robot — and a fixed 16:9 tile would crop the portrait to a band across its
+   middle, losing the subject. Sizing by height instead means neither is cropped
+   and neither is letterboxed. */
+.mTile{flex:0 0 auto;scroll-snap-align:start;margin:0;
+  min-width:min(210px,58vw);max-width:min(440px,82vw)}
+.mFill{display:block;height:clamp(190px,25vw,280px);width:auto;max-width:100%;
+  border-radius:var(--r);background:var(--bg-2);border:1px solid var(--cap-line)}
+.mCap{font-size:12px;color:var(--mute);line-height:1.45;margin-top:9px}
+@media(max-width:640px){.mFill{height:190px}}
+
+.socRow{padding:15px 2px;border-bottom:1px solid var(--cap-line)}
+.socRow:last-child{border-bottom:0}
+.socHead{display:flex;align-items:baseline;gap:9px;margin-bottom:5px}
+.socSrc{font-size:10px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;
+  color:var(--ink-2)}
+.socWho{font-size:12px;color:var(--mute)}
+.socBody{font-size:14px;color:var(--ink);line-height:1.5}
+
+/* ── not yet open ──
+   The card stays legible but stops competing: its mark loses colour and its
+   figures drop back, so a strip of four reads as the ones you can act on plus
+   one that is coming. The countdown keeps full strength — it is the point. */
+.snapCard.soon .fLogo{filter:grayscale(1);opacity:.72}
+.snapCard.soon .fname,.snapCard.soon .vdesc{opacity:.68}
+/* Only the headline figures soften. Dimming the whole block took the sub-lines
+   with it, and those are already --mute — at half strength on a near-white card
+   they stopped being readable at all, which is further than "recedes". */
+.snapCard.soon .hv{opacity:.68}
+.snapCard.soon .featCta{opacity:.6}
+.snapCard.soon .featCta:hover{opacity:.85}
+
+/* The receipt line under a subscribe or redeem button. Deliberately a link and
+   not a toast: a signed transaction is the one thing on this page a reader may
+   want to open later, and a toast is gone in four seconds. */
+.txLine{display:flex;align-items:center;gap:8px;margin-top:12px;font-size:12px;
+  color:var(--mute);flex-wrap:wrap}
+.txDot{width:6px;height:6px;border-radius:50%;background:var(--up);flex:0 0 auto}
+.txLink{color:var(--ink-2);text-decoration:underline;text-underline-offset:2px}
+.txLink:hover{color:var(--ink)}
+
+/* ── the portfolio ──
+   One row per position, laid out as a grid so the figures line up column-wise
+   down the page rather than each row measuring itself. Rows are buttons: the
+   whole thing is the way into that offering. */
+/* Transparent, so the same artwork the landing sits on shows through here too.
+   The title sits straight on it — no plate — and the holdings live in one large
+   glass capsule, the landing hero card grown to hold a page. */
+#portfolio{display:none;position:relative;z-index:1;min-height:calc(100vh - var(--nav-h));
+  padding:18px 0 80px}
+/* Back to the carousel — the chevron alone; the label lives in aria-label and
+   the tooltip. Pulled left by its own padding so the glyph's optical edge lines
+   up with the title beneath it, and dropped-shadowed to read on the photo. */
+.pfBack{display:inline-flex;align-items:center;justify-content:center;
+  width:34px;height:34px;margin:0 0 6px -9px;border-radius:9px;
+  color:var(--ink-2);filter:drop-shadow(0 1px 4px var(--bg));
+  transition:color var(--t-fast),background var(--t-fast)}
+.pfBack:hover{color:var(--ink);background:var(--surface-2)}
+.pfBack svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.9;
+  stroke-linecap:round;stroke-linejoin:round;display:block}
+.pfH{font-size:32px;font-weight:600;letter-spacing:-.02em;margin:0 0 22px}
+
+/* The capsule: the hero card's glass, sized for a page rather than a card, with
+   the same diffused drop the rail capsules got. */
+.pfCard{border:1px solid var(--cap-line-2);border-radius:calc(var(--r) + 4px);
+  padding:30px 34px;
+  background:linear-gradient(180deg,
+    color-mix(in srgb,var(--hero-top) 90%,transparent) 0%,
+    color-mix(in srgb,var(--hero-btm) 94%,transparent) 82%);
+  backdrop-filter:blur(22px) saturate(1.18);
+  -webkit-backdrop-filter:blur(22px) saturate(1.18);
+  box-shadow:inset 0 1px 0 var(--hero-edge),
+    0 2px 6px rgba(var(--sh),calc(.06 * var(--sh-k))),
+    0 14px 40px rgba(var(--sh),calc(.10 * var(--sh-k)))}
+
+/* Inside the capsule everything is divider-separated rather than boxed —
+   borders within a bordered pane read as clutter. */
+.pfTot{display:grid;grid-auto-flow:column;grid-auto-columns:1fr;gap:18px;
+  padding:0 0 22px;margin-bottom:6px;border-bottom:1px solid var(--cap-line)}
+.pfTotItem{display:flex;flex-direction:column;gap:6px;min-width:0}
+.pfTotV{font-size:24px;font-weight:400;letter-spacing:-.02em;line-height:1}
+.pfK{font-size:10px;font-weight:500;letter-spacing:.12em;text-transform:uppercase;
+  color:var(--mute)}
+.pfGroup{font-size:11px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;
+  color:var(--mute);margin:24px 0 2px}
+.pfNone{font-size:15px;color:var(--mute);padding:12px 2px 2px;margin:0}
+
+.pfRows{display:flex;flex-direction:column}
+.pfRow{display:grid;grid-template-columns:auto minmax(150px,1.4fr) repeat(3,minmax(0,1fr));
+  gap:20px;align-items:center;width:100%;text-align:left;
+  padding:16px 10px;margin:0 -10px;border-radius:var(--r-sm);
+  border-bottom:1px solid var(--cap-line);
+  transition:background var(--t-fast)}
+.pfRows .pfRow:last-child{border-bottom:0}
+.pfRow:hover{background:var(--surface)}
+.pfMark{display:flex;align-items:center}
+.pfLogo{width:34px;height:34px;flex:0 0 auto}
+.pfLogo.mask{background:var(--ink);-webkit-mask:var(--logo) center/contain no-repeat;
+  mask:var(--logo) center/contain no-repeat}
+.pfLogo.img{background:var(--logo) center/contain no-repeat}
+.pfName{display:flex;flex-direction:column;gap:4px;min-width:0}
+.pfCo{font-size:15px;font-weight:600;letter-spacing:-.01em;color:var(--ink)}
+.pfSt{font-size:12px;color:var(--mute)}
+.pfCell{display:flex;flex-direction:column;gap:6px;min-width:0}
+.pfV{font-size:15px;color:var(--ink);white-space:nowrap}
+
+@media(max-width:900px){
+  .pfTot{grid-auto-flow:row;grid-template-columns:1fr 1fr}
+  .pfRow{grid-template-columns:auto 1fr;gap:14px 18px}
+  .pfRow .pfCell{grid-column:2}
+}
+
+/* transaction history on the portfolio */
+.pfH2{font-size:15px;font-weight:600;letter-spacing:-.01em;margin:38px 0 14px;
+  padding-top:24px;border-top:1px solid var(--cap-line)}
+.txRows{display:flex;flex-direction:column}
+.txRow{display:grid;grid-template-columns:96px minmax(120px,1fr) repeat(2,minmax(0,110px)) 70px 96px;
+  gap:16px;align-items:center;padding:13px 2px;border-bottom:1px solid var(--cap-line);
+  font-size:13px}
+.txRow:last-child{border-bottom:0}
+.txKind{font-size:10px;font-weight:600;letter-spacing:.09em;text-transform:uppercase}
+.txKind.in{color:var(--ink-2)}
+.txKind.out{color:var(--up)}
+.txCo{color:var(--ink);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.txAmt{color:var(--ink);font-weight:600}
+.txTok,.txWhen{color:var(--mute)}
+@media(max-width:820px){
+  .txRow{grid-template-columns:auto 1fr auto;gap:8px 14px}
+  .txTok,.txWhen{display:none}
+}
+
+/* ── subscribe rail ──
+   The capsules are lifted off the page with the same layered falloff as the
+   landing cards — doubling blur, halving alpha, no horizontal offset — just
+   shallower, because these sit on a flat page rather than a photograph and only
+   need to read as raised, not as floating. */
+.vrsec{border:1px solid var(--cap-line);border-radius:var(--r);background:var(--cap-bg);
+  padding:22px 24px;margin-bottom:20px;
+  box-shadow:
+    0 1px 1px rgba(var(--sh),calc(.07 * var(--sh-k))),
+    0 2px 3px rgba(var(--sh),calc(.06 * var(--sh-k))),
+    0 5px 7px rgba(var(--sh),calc(.05 * var(--sh-k))),
+    0 10px 16px rgba(var(--sh),calc(.04 * var(--sh-k)))}
+/* The highlighted capsule sets its own box-shadow for the top edge highlight,
+   and two classes outrank one — so it has to restate the drop rather than
+   inherit it, with the inset edge kept in front. */
+.vrsec.hl{
+  box-shadow:
+    inset 0 1px 0 var(--hero-edge),
+    0 1px 1px rgba(var(--sh),calc(.07 * var(--sh-k))),
+    0 2px 3px rgba(var(--sh),calc(.06 * var(--sh-k))),
+    0 5px 7px rgba(var(--sh),calc(.05 * var(--sh-k))),
+    0 10px 16px rgba(var(--sh),calc(.04 * var(--sh-k)))}
+.vrsec:last-child{margin-bottom:0}
+.vrsec.hl .mini{color:var(--ink-2)}
+.cdHead{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:11px}
+.cdName{font-size:15px;font-weight:600;letter-spacing:-.014em;color:var(--ink);
+  min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cdn{display:flex;gap:10px;margin-top:6px}
+.cdu{text-align:center;min-width:52px}
+.cdv{font-size:23px;font-weight:600;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+.cdl{font-size:11px;color:var(--mute);margin-top:2px}
+.cdSub{font-size:13px;font-weight:500;color:var(--up);margin-top:11px}
+.cdSub.mute{color:var(--mute)}
+.vrChart{height:82px;margin:11px 0 2px}
+.vrChart canvas{width:100%;height:100%;display:block}
+
+.depbox{border:1px solid var(--cap-line);border-radius:var(--r);padding:15px 17px;margin:0 0 14px;
+  background:rgba(255,255,255,.022)}
+html[data-theme="light"] .depbox{background:rgba(0,0,0,.018)}
+.depbox:focus-within{border-color:var(--cap-line-2)}
+.depTop{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.depL{font-size:12px;color:var(--mute)}
+/* the wallet control, in the one place its state changes what you can do */
+.wlink{font-size:12px;color:var(--ink-2);text-decoration:underline;text-underline-offset:3px;
+  text-decoration-color:var(--cap-line-2);transition:color var(--t-fast)}
+.wlink:hover{color:var(--ink);text-decoration-color:var(--acc)}
+.depAmt{width:100%;background:none;border:none;outline:none;display:block;
+  font-size:40px;font-weight:500;letter-spacing:-.032em;color:var(--ink);
+  line-height:1.1;margin:10px 0 6px;padding:0}
+.depAmt::-webkit-outer-spin-button,.depAmt::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+.depAmt{-moz-appearance:textfield}
+.depSub{font-size:12px;color:var(--mute)}
+.depBot{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.depUnit{display:inline-flex;align-items:center;gap:8px;font-size:13px;color:var(--ink-2)}
+.depUnit button{font-size:11px;font-weight:600;letter-spacing:.04em;color:var(--ink-2);
+  border:1px solid var(--cap-line);border-radius:7px;padding:3px 8px;transition:all var(--t-fast)}
+.depUnit button:hover{color:var(--ink);border-color:var(--cap-line-2)}
+.fld{margin:16px 0}
+.fldL{display:flex;justify-content:space-between;font-size:13px;color:var(--mute);margin-bottom:8px}
+.inp{display:flex;align-items:center;gap:10px;background:var(--cap-bg);border:1px solid var(--cap-line);
+  border-radius:var(--r-sm);padding:0 14px;transition:border-color var(--t-fast)}
+.inp:focus-within{border-color:var(--acc)}
+.inp input{flex:1;min-width:0;background:none;border:none;outline:none;padding:12px 0;
+  font-size:16px;font-weight:500}
+.inp input::-webkit-outer-spin-button,.inp input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+.inp span{font-size:13px;color:var(--mute);flex:0 0 auto}
+.inp button{font-size:13px;font-weight:500;color:var(--ink-2)}
+.inp button:hover{color:var(--ink)}
+.row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:8px 0;
+  font-size:14px;color:var(--ink-2)}
+.row b{font-weight:500;color:var(--ink)}
+.row.tot{border-top:1px solid var(--line-2);margin-top:8px;padding-top:10px}
+.row.tot span{color:var(--ink);font-weight:500}
+.cta{width:100%;margin-top:16px;padding:14px 0;border-radius:var(--r);font-size:16px;font-weight:500;
+  background:var(--acc);color:var(--acc-ink);transition:filter var(--t-fast)}
+.cta:hover:not(:disabled){filter:brightness(1.1)}
+.cta:disabled{opacity:.35;cursor:not-allowed}
+
+/* ── footer & toast ── */
+/* Dimmer than --mute: the whole footer is reference material that should be
+   findable without competing with the offering above it. Mixed toward the page
+   rather than set to a flat grey, so it recedes by the same amount in either
+   theme instead of going muddy in one of them. */
+.foot{border-top:1px solid var(--line);margin-top:56px;padding:22px 0 40px;font-size:11px;
+  color:color-mix(in srgb,var(--mute) 76%,var(--bg));line-height:1.55}
+/* Full width — the footer runs the content column rather than sitting in a
+   narrower measure of its own. */
+.disc{margin-top:14px;font-size:9px;line-height:1.42;color:inherit}
+.disc p+p{margin-top:7px}
+/* The placeholders and the one load-bearing phrase still need to be findable in
+   a wall of grey, so they step back up rather than down. */
+.disc b{color:var(--mute);font-weight:600}
+.disc p:empty{display:none}
+.footWho{margin-top:16px}
+.toast{position:fixed;left:50%;bottom:28px;transform:translateX(-50%) translateY(12px);background:var(--ink);
+  color:var(--bg);padding:14px 22px;border-radius:var(--r);font-size:15px;font-weight:500;opacity:0;
+  transition:opacity var(--t-slow),transform var(--t-slow);z-index:99;pointer-events:none;max-width:90vw;
+  text-align:center;box-shadow:0 8px 32px rgba(0,0,0,.24)}
+.toast.on{opacity:1;transform:translateX(-50%) translateY(0)}
+
+/* ── fitting the fold ──────────────────────────────────────────────────────
+   The ticker has to be readable without scrolling, and the card is the only
+   thing tall enough to push it off. So the card gives ground as the viewport
+   shortens: the tagline first, then the countdown's date line, then the type
+   and the padding.
+
+   These live at the end of the sheet deliberately. They are height queries and
+   most of what they override is set by width queries — equal specificity, so
+   source order is what decides, and a short wide window has to be able to win. */
+@media(max-height:860px){
+  .landStage{padding:20px 0 16px}
+  .vfeat{padding:26px 28px 24px}
+  .fhead{gap:13px}
+  .fname{font-size:40px}
+  .fLogo{width:52px;height:52px}
+  .fmark{gap:16px}
+  .fhClock{margin-top:18px}
+  .fhCd{margin-top:10px}
+  .fhCd .cdv{font-size:32px;padding:10px 10px 11px;min-width:72px}
+  .fhCd .cdl{margin-top:6px}
+  .fhClockD{margin-top:9px}
+  .fstats{margin:20px auto 0;padding-top:18px}
+  .featCta{margin-top:18px;padding:11px 30px;font-size:14px}
+  .dots{margin-top:14px}
+}
+@media(max-height:760px){
+  .vfeat .vdesc{display:none}
+  .fname{font-size:33px}
+  .fLogo{width:44px;height:44px}
+  .fhCd .cdv{font-size:26px;min-width:62px;padding:8px 8px 9px}
+  .fstats .hv{font-size:21px}
+  .fstats{margin-top:17px;padding-top:15px}
+  .vfeat{padding:22px 24px 20px}
+}
+@media(max-height:660px){
+  .fhClockD{display:none}               /* the full date; the countdown remains */
+  .fstats .hsub{display:none}
+  .fname{font-size:27px}
+  .fLogo{width:36px;height:36px}
+  .fhCd{gap:7px}
+  .fhCd .cdv{font-size:21px;min-width:50px;padding:6px 6px 7px;border-radius:10px}
+  .fhCd .cdl{font-size:9px;margin-top:4px}
+  .fstats .hv{font-size:18px}
+  .fhClock{margin-top:14px}
+  .featCta{margin-top:14px;padding:9px 24px;font-size:13px}
+  .landStage{padding:14px 0 10px}
+  .dots{margin-top:10px}
+}
+</style>
+<script>
+// Settle the theme before the first paint — doing it from the main script
+// further down would flash dark at a reader who is on light. A stored choice
+// wins; failing that the system decides; failing that the markup's dark stands.
+// Inside the platform its theme wins, so the frame never flashes the other one.
+try{var sh=null;try{sh=window.parent!==window&&window.parent.MarcoShell}catch(e){}
+  var t=sh?sh.theme():localStorage.getItem('moonshot.theme')
+  ||(matchMedia('(prefers-color-scheme: light)').matches?'light':null);
+  if(t)document.documentElement.setAttribute('data-theme',t)}catch(e){}
+</script>
+</head>

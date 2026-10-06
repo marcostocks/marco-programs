@@ -1,0 +1,50 @@
+{
+  "cluster": "devnet",
+  "rpcUrl": "https://devnet.helius-rpc.com/?api-key=33a6cf62-a5fd-4573-b587-5673f098cca2",
+  "rpcUrlFallback": "https://api.devnet.solana.com",
+  "generatedBy": "orchestrator/scripts/setup-devnet.ts",
+  "programs": {
+    "marcoSpot": "44PTF8po9JW5KK5VVH295XRFfNm1x9KuwcAVsvYGgn9e",
+    "marcoVault": "CgJnDJHjhkMgrkaky3Dp9dD89NzXRMP287bqmgCPMC8q",
+    "marcoFutures": "GCW6Gt86tSVMqEwz6GkVNDWuzivDXCG2bzjp4AS3ztkW"
+  },
+  "usdc": {
+    "mint": "C7e4CPxXm6u5W1hahkPR1TmHfMdjtVwKxhurYoMFG9ef",
+    "decimals": 6
+  },
+  "wallets": {
+    "admin": "DAVKK3RoykYciooErx8yiRTPvPFdWb68ru8dn9QXqUNm",
+    "operator": "DAVKK3RoykYciooErx8yiRTPvPFdWb68ru8dn9QXqUNm",
+    "treasury": "DAVKK3RoykYciooErx8yiRTPvPFdWb68ru8dn9QXqUNm",
+    "broker": "DAVKK3RoykYciooErx8yiRTPvPFdWb68ru8dn9QXqUNm",
+    "demoTrader": "DAVKK3RoykYciooErx8yiRTPvPFdWb68ru8dn9QXqUNm"
+  },
+  "tokenAccounts": {
+    "brokerUsdc": "BJsX7ogUwTkMFAAUEXHQGwL517QYbcwX1PAf6dtTtEJg",
+    "treasuryUsdc": "BJsX7ogUwTkMFAAUEXHQGwL517QYbcwX1PAf6dtTtEJg",
+    "demoTraderUsdc": "BJsX7ogUwTkMFAAUEXHQGwL517QYbcwX1PAf6dtTtEJg"
+  },
+  "futures": {
+    "marketId": "moon-fut-1",
+    "market": "2SxQaVok4HPnt574DN8pwdTBTsU9GuVHPwC4JJLjHmNB",
+    "config": "GjUFUtjtguqYguqeTUZNM1HSVpGCYeCgkqgBooEZaqsc",
+    "collateralVault": "2c3BVjPV3afpXDXofRXqioLKHcwMvFuxQxKTqhwxozHW",
+    "insuranceVault": "C7dsey4vRUnxLd2n8MFJSbufQB6KqqcaqBGHw48JSpi4"
+  },
+  "spot": {
+    "2513.HK": "Hz1w45T9oTCT8XrBJBZYDxCE81t1wMxYTywpj2VjvHKF",
+    "0100.HK": "DhuR1NPAg7tdVPN2rcbyNZocN6CnbEr3brPFUpnswwcd",
+    "0981.HK": "6tXo2QjCDgkD5oJDMrmgKABYahQJPvkULsnPbTyuJUoz",
+    "CXMT": "CmXuUqS8eyXhSq593fNEbQT32Ad5dzjUWUDYoKL8K9Uf",
+    "9988.HK": "E4rR6nZMVYNeX2jxs3kvVywp9Fyo5kaQcojUQmJSpZtR",
+    "0700.HK": "7vFWyzosgQ5J9xmMHtkWxoBieVKabi55cUFt7cAYZ8ks",
+    "1810.HK": "EvEUDLFXXLiSRTapPsGDsEf9Hb17XzQrBj9tjv22pV3a",
+    "PDD": "BjYbHteTitVW8TXpf1rPucCbj8RMsgZKP7M8HDvXFTUH",
+    "9618.HK": "3uEWiAHUwrm7tL9Q4X6WnpbRtUxKjh3PQsDsvW6VcDBc",
+    "3690.HK": "HpmDZhyWSbqvyqAtLb2bNEYh37P3RTKdQv2KAs3bXMj7",
+    "9866.HK": "29wbmKLjHC1bUzaiG5VUXJCAMh7mcGdRkHGDz5CKTM9a",
+    "9660.HK": "6FNxFRhuvQVR5wUni5Ek2TL1qBavpDPsPLrqk8kXxLvS",
+    "BTC": "5X7x2qSeZVJpoHznxnnnU6RtNs32Tt3vme3mAyMycXx5",
+    "ETH": "2uBD4oTg8u3XWcBvK2qwL1PVK3G72bCWrg8B1UpDUtkc"
+  }
+}
