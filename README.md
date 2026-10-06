@@ -15,7 +15,7 @@ three products:
 |---|---|---|
 | **Markets · Trade · Portfolio** | Live HK/China tech and crypto prices, a spot order ticket, portfolio and research agents. Each of the 14 markets is its own `marco_spot` market on devnet: a buy escrows your USDC in a `place_buy`, and position tokens arrive when the operator confirms custody. With a wallet connected, Portfolio is that wallet's on-chain book. | `#/markets` |
 | **Pre-IPO** | Subscription vaults for Moonshot AI and ByteDance, read live from `marco_vault` on devnet — cap, commitments, deadline and fee timing come from the vault account, and subscribing is a holder-signed `deposit`. | `#/preipo` · `#/preipo/moon` |
-| **Futures** | Leveraged long/short on Moonshot AI's valuation, cash-settled at the IPO, against the `marco_futures` market `moon-fut-1`. Opening is `deposit_collateral` + `open_position` in one wallet-signed transaction, filled against the vAMM with no operator step; closing pays the margin back. The mark, depth ladder and position are read from chain. The **Simulate** menu (IPO listing, funding round) is a labelled what-if that never touches your position. | `#/futures` · `#/futures/docs` |
+| **Futures** | Leveraged long/short on Moonshot AI's valuation, cash-settled at the IPO, against the `marco_futures` market `moon-fut-1`. Opening is `deposit_collateral` + `open_position` in one wallet-signed transaction, filled against the vAMM with no operator step; closing pays the margin back. The mark, depth ladder and position are read from chain. | `#/futures` · `#/futures/docs` |
 
 Pre-IPO and Futures are complete apps of their own (`apps/preipo/`,
 `apps/futures/`), framed by the platform. The platform exposes
@@ -198,8 +198,8 @@ instructions driven by a service rather than by hand; balances reconcile
 exactly across every step shown above.
 
 **Not yet** — the futures market's mark is the program's vAMM; the screen's
-8-hour EMA and external-anchor convergence are described in its docs and shown
-by the Simulate menu, but are not on chain, and settlement waits for the admin's
+8-hour EMA and external-anchor convergence are described in its docs but are
+not on chain, and settlement waits for the admin's
 `settle_market`. Unlike the other two, that program holds trader margin and is
 the counterparty, so it carries an insurance fund and liquidation; no keeper
 runs `liquidate_position` yet. Spot prices on screen are live exchange feeds,

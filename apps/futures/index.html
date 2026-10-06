@@ -155,10 +155,6 @@ html.embedded[data-theme="dark"]{--bg:#101114;--bg-2:#17181C;--bg-3:#1F2024}
 .chip{font-size:10px;font-weight:700;letter-spacing:.4px;padding:3px 7px;border-radius:5px;
   background:color-mix(in srgb,var(--brand) 16%,transparent);color:var(--brand);text-transform:uppercase}
 .tsub{font-size:12px;color:var(--mute);margin-top:2px}
-.advbtn{white-space:nowrap;font-size:12px;font-weight:500;color:var(--ink-2);background:var(--surface);
-  border:1px solid var(--line);padding:7px 12px;border-radius:9px;display:inline-flex;gap:7px;align-items:center}
-.advbtn:hover{background:var(--surface-2)}
-.advbtn svg{width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:1.6}
 
 /* big price + stats */
 .pxrow{display:flex;align-items:flex-end;gap:26px;flex-wrap:wrap}
@@ -187,15 +183,6 @@ html.embedded[data-theme="dark"]{--bg:#101114;--bg-2:#17181C;--bg-3:#1F2024}
   background:var(--surface);color:var(--ink)}
 .shbtn.primary{background:var(--acc);color:var(--acc-ink);border-color:transparent}
 .shbtn:hover{filter:brightness(1.08)}
-.adv{position:relative}
-.advcar{font-size:9px;opacity:.6;margin-left:1px}
-.advmenu{position:absolute;top:calc(100% + 6px);right:0;z-index:40;min-width:172px;
-  background:var(--bg-2);border:1px solid var(--line-2);border-radius:11px;padding:5px;
-  box-shadow:0 14px 34px rgba(0,0,0,.32)}
-.advitem{display:block;width:100%;text-align:left;font-size:13px;color:var(--ink-2);background:none;
-  border:0;border-radius:7px;padding:9px 11px;cursor:pointer;white-space:nowrap;
-  transition:background var(--t-fast),color var(--t-fast)}
-.advitem:hover{background:var(--surface);color:var(--ink)}
 .pill{padding:3px 8px;border-radius:6px;font-size:12px;font-weight:500}
 .pill.up{background:color-mix(in srgb,var(--up) 15%,transparent);color:var(--up)}
 .pill.dn{background:color-mix(in srgb,var(--down) 15%,transparent);color:var(--down)}
@@ -395,13 +382,6 @@ td{padding:12px 14px 12px 0;border-top:1px solid var(--line);font-size:13px}
               <div class="tsub mono">MOON·USDC</div>
             </div>
             <div class="theadR">
-              <div class="adv" id="adv">
-                <button class="advbtn" id="ipoBtn"><svg viewBox="0 0 24 24"><path d="M12 3v18M5 10l7-7 7 7"/></svg> Simulate IPO <span class="advcar">▾</span></button>
-                <div class="advmenu" id="advmenu" hidden>
-                  <button class="advitem" data-sim="ipo">IPO listing</button>
-                  <button class="advitem" data-sim="round">Funding round</button>
-                </div>
-              </div>
               <div class="cdBox">
                 <div class="cdHead" id="cdHead">Expected IPO</div>
                 <div class="cdSegs">
@@ -635,7 +615,7 @@ td{padding:12px 14px 12px 0;border-top:1px solid var(--line);font-size:13px}
         </section>
 
         <p class="mini" style="color:var(--mute);margin-top:34px;line-height:1.6">
-          Illustrative interface for Marco Valuation Futures. Simulated data. This material is informational only and does not constitute an offer or solicitation to purchase any security.
+          Marco Valuation Futures on Solana devnet, with test USDC — no real funds are involved. This material is informational only and does not constitute an offer or solicitation to purchase any security.
         </p>
       </div>
     </div>
@@ -690,8 +670,7 @@ const liqVal=p=>p.side==='long'?(p.openNotional-p.margin)/(p.base*(1-MKT.mmr)):(
    With the bundle beside the page, MKT and POS are read from the marco_futures
    program rather than simulated: the reserves ARE the vAMM, the position IS the
    wallet's Position account, and every open and close is a transaction the
-   wallet signs. The Simulate menu stays, as a what-if that never touches the
-   position. Without the bundle (opened off disk) the page runs the simulation. */
+   wallet signs. Without the bundle (opened off disk) the page runs the simulation. */
 const CHAIN_SRC='../../marco-chain.js';
 const EXPLORER=(kind,id)=>'https://explorer.solana.com/'+kind+'/'+id+'?cluster=devnet';
 let LIVE=false, CH=null, LAST_TX=null;
@@ -779,17 +758,6 @@ async function connectLive(){
     else{await CH.connect();SHELL?.walletChanged(true);toast('Wallet connected · '+CH.shortAddress);}
   }catch(e){return toast(String(e.message||e).slice(0,110));}
   await syncChain(); renderAll();
-}
-/* What the program would pay at a listing price — shown, never posted. Settlement
-   is the admin's settle_market at the real listing. */
-function whatIfIPO(){
-  const def=(mark()*1.25).toFixed(1);
-  const raw=prompt('What-if: first-day listing valuation ($B)?\nShown only — your on-chain position is not touched.',def);
-  if(raw===null)return; const price=parseFloat(raw); if(!(price>0))return toast('Enter a valuation in $B');
-  const line=POS?'Your '+POS.side+' would settle with PnL '+usd2(uPnl(POS,price))+'.':'You have no open position.';
-  addEvent({type:'ipo',frac:0.94,price,title:'What-if: lists at '+bil(price),
-    detail:'Simulation only. '+line+' On chain, the market settles when the admin posts the real listing price (settle_market).'});
-  renderAll(); showEventPopover(EVENTS.length-1);
 }
 
 /* format */
@@ -1054,41 +1022,6 @@ function closePosition(){
   toast('Closed · payout '+usd(payout)+' · PnL '+usd2(realized)); POS=null; renderAll();
   showEventPopover(EVENTS.length-1);
 }
-function fireFundingRound(){
-  if(MKT.settled)return;
-  const from=mark();                                          // pre-round mark — drives the glide and the chart marker
-  const anchor=Math.round(vammMid()*1.20*10)/10;              // a verified round reprices ~+20%
-  MKT.extAnchor=anchor; MKT.revTarget=anchor;                 // new last-verified valuation + drift target (display baseline stays fixed)
-  MKT.thin=false; MKT.frozen=false;                           // a hard event resolves a freeze
-  MKT.override={from,to:anchor,start:Date.now(),dur:CONVERGE_MS};
-  addEvent({type:'round', price:from, title:'Private funding round announced',
-    detail:'A new primary funding round was confirmed at '+bil(anchor)+', up from '+bil(from)+'. The mark converges to the verified valuation over a 24–48-hour window (compressed here for the demo).'});
-  if(LIVE)EVENTS[EVENTS.length-1].detail+=' <b>Simulation only</b> — the on-chain mark is the program\'s vAMM, and your position is unaffected.';
-  toast((LIVE?'Simulation · ':'')+'Funding round confirmed · anchor '+bil(anchor)+' · mark converging');
-  startOverrideAnim(); renderAll();
-}
-function simulateIPO(){
-  if(LIVE)return whatIfIPO();
-  const def=(mark()*1.25).toFixed(1);
-  const raw=prompt('Post the first-day listing valuation ($B).\nLong profits above entry, short below.',def);
-  if(raw===null)return; const price=parseFloat(raw); if(!(price>0))return toast('Enter a valuation in $B');
-  MKT.settled=true;MKT.settlePrice=price;MKT.ema=price;MKT.extAnchor=price;MKT.override=null;MKT.thin=false;MKT.frozen=false;
-  let posLine='No open position at settlement.', ipoCard=null;
-  if(POS){const pnl=POS.side==='long'?Math.abs(POS.base)*price-POS.openNotional:POS.openNotional-Math.abs(POS.base)*price;
-    const payout=Math.max(0,POS.margin+pnl);W.usdc+=payout;
-    posLine='Your '+POS.side+' settled — PnL '+usd2(pnl)+', payout '+usd(payout)+'.';
-    ipoCard={name:'Moonshot AI',sym:'MOON·USDC',side:POS.side,roi:pnl/POS.margin*100,
-      entry:POS.openNotional/Math.abs(POS.base),exit:price,exitLabel:'Settlement',lev:POS.lev,pnl,margin:POS.margin};
-    HISTORY.unshift({side:POS.side,size:POS.openNotional,entry:POS.openNotional/Math.abs(POS.base),exit:price,pnl,roi:pnl/POS.margin*100,lev:POS.lev,kind:'Settled',ts:Date.now(),card:ipoCard});
-    toast('Moonshot listed at '+bil(price)+' · '+POS.side+' settled · payout '+usd(payout));POS=null;}
-  else toast('Moonshot listed at '+bil(price)+' · market settled');
-  MKT.base=MKT.quote/price; HIST.push(price); if(HIST.length>200)HIST.shift();
-  addEvent({type:'ipo', frac:0.94, price:price, title:'IPO — listed at '+bil(price),
-    detail:'Moonshot listed on its first public day at '+bil(price)+'. All open positions cash-settled against this price. '+posLine, card:ipoCard});
-  $('ipoBtn').innerHTML='Settled at '+bil(price); $('ipoBtn').disabled=true; $('advmenu').hidden=true;
-  renderAll();
-  showEventPopover(EVENTS.length-1);
-}
 function connectWallet(){
   if(LIVE)return connectLive();
   if(W.connected){W.connected=false;$('wdot').classList.remove('on');toast('Disconnected');renderAll();return;}
@@ -1162,16 +1095,6 @@ function updateCountdown(){
 }
 
 /* ambient flow keeps the book, EMA (and PnL) alive off-disk */
-/* smooth ~12fps redraw while an external override is converging (ambient's 1.5s tick is too steppy) */
-let _ovrTimer=null, _ovrLastPush=0;
-function startOverrideAnim(){ if(_ovrTimer)return; _ovrLastPush=Date.now();
-  _ovrTimer=setInterval(()=>{ if(!MKT.override){ clearInterval(_ovrTimer); _ovrTimer=null; renderAll(); return; }
-    const now=Date.now();
-    if(now-_ovrLastPush>=420){ _ovrLastPush=now; const step=1/(HIST.length-1);
-      HIST.push(mark()); HIST.shift();                 // scroll the window so the convergence advances along the x-axis (time), not just vertically
-      EVENTS.forEach(e=>{ if(e.frac!=null)e.frac-=step; }); }
-    else HIST[HIST.length-1]=mark();
-    prevMark=mark(); renderHeader(); drawChart(); if(POS)renderPosition(); }, 80); }
 let _lastTick=Date.now();
 function ambient(){ const now=Date.now(), dt=now-_lastTick; _lastTick=now; if(MKT.settled)return;
   if(!LIVE&&!MKT.override&&!MKT.frozen){ const drift=(Math.random()-0.5)*0.003-(vammMid()-MKT.revTarget)/MKT.revTarget*0.02; MKT.quote*=1+drift; }
@@ -1186,12 +1109,6 @@ $('levRng').addEventListener('input',renderTicket);
 $('amt').addEventListener('input',renderTicket);
 $('maxBtn').onclick=()=>{$('amt').value=Math.floor(W.usdc);renderTicket();};
 $('cta').onclick=openPosition;
-(function(){ const adv=$('adv'), menu=$('advmenu');
-  $('ipoBtn').addEventListener('click',e=>{ e.stopPropagation(); if(MKT.settled)return; menu.hidden=!menu.hidden; });
-  menu.querySelectorAll('[data-sim]').forEach(b=>b.addEventListener('click',e=>{ e.stopPropagation(); menu.hidden=true;
-    if(b.dataset.sim==='ipo')simulateIPO(); else fireFundingRound(); }));
-  document.addEventListener('click',e=>{ if(!adv.contains(e.target))menu.hidden=true; });
-})();
 $('chart').addEventListener('click',e=>{ const g=e.target.closest('.evmk'); if(g){ e.stopPropagation(); showEventPopover(+g.dataset.ev); } });
 document.addEventListener('click',e=>{ const p=$('evPop'); if(p&&!p.hidden&&!p.contains(e.target)&&!e.target.closest('.evmk'))p.hidden=true; });
 document.querySelectorAll('.ptab').forEach(b=>b.onclick=()=>showPosTab(b.dataset.ptab));
@@ -1232,7 +1149,6 @@ loadChain().then(async c=>{
   if(SHELL?.walletConnected?.()&&!c.connected)await c.connect().catch(()=>{});
   if(!(await syncChain()))return;
   LIVE=true; HISTORY.length=0; EVENTS.length=0; seedHist();
-  $('ipoBtn').firstChild.nextSibling.textContent=' Simulate ';
   liveBanner(); renderAll();
   setInterval(()=>{syncChain().then(ok=>{if(ok)renderAll()})},15000);
 });
